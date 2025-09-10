@@ -1,0 +1,41 @@
+[
+  [
+    "doc_1757509353724_2sizq8fv3",
+    {
+      "id": "doc_1757509353724_2sizq8fv3",
+      "content": "Das Einhorn ist ein legendäres Fabeltier, das in vielen Kulturen als Symbol für Reinheit und Magie verehrt wird. Es lebt in tiefen, mystischen Wäldern und kann nur von Menschen mit reinem Herzen gesehen werden. Das Horn des Einhorns besitzt magische Heilkräfte und kann Gifte neutralisieren.",
+      "metadata": {
+        "title": "Das magische Einhorn",
+        "creature": "einhorn",
+        "source": "session_test",
+        "session": "absolute_path_test",
+        "addedAt": "2025-09-10T13:02:33.764Z",
+        "length": 291
+      }
+    }
+  ],
+  [
+    "doc_1757509440170_xl9wn9msf",
+    {
+      "id": "doc_1757509440170_xl9wn9msf",
+      "content": "Peter S. Beagles Roman \"Das letzte Einhorn\" (Originaltitel: \"The Last Unicorn\") ist ein moderner Fantasy-Klassiker, der erstmals 1968 veröffentlicht wurde. Die Geschichte handelt von einem Einhorn, das erfährt, dass es das letzte seiner Art ist, und sich auf eine abenteuerliche Reise begibt, um seine verschwundenen Artgenossen zu finden. Auf dem Weg begegnet es verschiedenen Figuren, darunter der Zauberer Schmendrick und Molly Grue, die es auf seiner Suche begleiten. Der Roman thematisiert Verlust, Hoffnung, Identität und die Kraft der Fantasie. Beagles poetische Sprache und die melancholische, zugleich humorvolle Erzählweise machen das Buch zu einem zeitlosen Werk, das sowohl Kinder als auch Erwachsene anspricht. \"Das letzte Einhorn\" wurde mehrfach adaptiert, unter anderem als erfolgreicher Zeichentrickfilm von 1982.",
+      "metadata": {
+        "title": "Peter S. Beagle – Das letzte Einhorn",
+        "addedAt": "2025-09-10T13:04:00.351Z",
+        "length": 829
+      }
+    }
+  ],
+  [
+    "doc_1757509481294_zkn3obun2",
+    {
+      "id": "doc_1757509481294_zkn3obun2",
+      "content": "Ikebana ist die japanische Kunst des Blumenarrangierens und hat eine jahrhundertealte Tradition. Im Gegensatz zu westlichen Blumensträußen legt Ikebana besonderen Wert auf Harmonie, Ausgewogenheit und die symbolische Bedeutung der einzelnen Elemente. Die Anordnung folgt oft strengen Regeln, wobei Linienführung, Raum und Asymmetrie eine zentrale Rolle spielen. Ziel ist es, die Schönheit der Natur in ihrer Einfachheit und Vergänglichkeit hervorzuheben. Ikebana wird häufig als meditative Praxis verstanden, die Achtsamkeit und innere Ruhe fördert. Es gibt verschiedene Stilrichtungen, darunter Ikenobo, Sogetsu und Ohara, die jeweils eigene Techniken und Philosophien betonen.",
+      "metadata": {
+        "title": "Ikebana – Die Kunst des japanischen Blumenarrangierens",
+        "addedAt": "2025-09-10T13:04:41.327Z",
+        "length": 678
+      }
+    }
+  ]
+]
