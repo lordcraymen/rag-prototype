@@ -8,6 +8,8 @@ services:
       POSTGRES_USER: raguser
       POSTGRES_PASSWORD: ragpassword
       POSTGRES_DB: rag
+      # Create postgres superuser for pgAdmin access
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
       - "5432:5432"
     volumes:

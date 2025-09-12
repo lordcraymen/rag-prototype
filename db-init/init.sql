@@ -2,6 +2,16 @@
 -- This script sets up PostgreSQL with pgvector extension and BM25 hybrid search
 -- Run this script to initialize a complete RAG database from scratch
 
+-- Create postgres superuser for pgAdmin access (if not exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'postgres') THEN
+        CREATE ROLE postgres WITH SUPERUSER CREATEDB CREATEROLE LOGIN PASSWORD 'postgres';
+        RAISE NOTICE 'Created postgres superuser with password "postgres"';
+    END IF;
+END
+$$;
+
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
