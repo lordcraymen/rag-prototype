@@ -37,15 +37,15 @@ const initializeRetriever = async () => {
 };
 
 const server = new FastMCP({
-  name: 'RAG Service',
+  name: 'Project Knowledge Base',
   version: '1.0.0',
-  description: 'A RAG service with local embeddings and vector search'
+  description: 'Project-specific documentation and knowledge retrieval system. Use this FIRST for any project-related questions, code examples, API docs, or technical guidance before using web search or general knowledge.'
 });
 
 // Add a tool to add documents to the RAG system
 server.addTool({
   name: 'add_document',
-  description: 'Add a document to the RAG knowledge base',
+  description: 'Add project documentation, code examples, API references, or technical knowledge to the knowledge base. Use this to store project-specific information that should be consulted before web searches.',
   parameters: z.object({
     content: z.string().describe('The document content to add'),
     title: z.string().optional().describe('Optional document title'),
@@ -215,10 +215,145 @@ server.addTool({
   }
 });
 
-// Add a tool to search/query the RAG system with hybrid search
+// Add a tool to batch add documents from multiple URLs
 server.addTool({
+  name: 'add_documents_from_urls',
+  description: 'Batch fetch content from multiple URLs and add to knowledge base. Ideal for processing sitemap URLs or documentation indexes.',
+  parameters: z.object({
+    urls: z.array(z.string()).describe('Array of URLs to fetch content from'),
+    metadata: z.record(z.any()).optional().describe('Optional metadata to apply to all documents')
+  }),
+  execute: async (params) => {
+    try {
+      // Ensure retriever is initialized
+      await initializeRetriever();
+      
+      console.error('\n=== BATCH URL PROCESSING ===');
+      console.error(`Processing ${params.urls.length} URLs`);
+      console.error('===========================\n');
+      
+      const results = [];
+      const errors = [];
+      
+      for (let i = 0; i < params.urls.length; i++) {
+        const url = params.urls[i];
+        console.error(`[${i + 1}/${params.urls.length}] Processing: ${url}`);
+        
+        try {
+          // Fetch content from URL
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const html = await response.text();
+          
+          // Simple HTML parsing to extract text content
+          let cleanContent = html
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+            .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+            .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '');
+          
+          // Extract title
+          const titleMatch = cleanContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+          const documentTitle = titleMatch ? titleMatch[1].trim() : new URL(url).pathname;
+          
+          // Remove HTML tags and clean up
+          cleanContent = cleanContent
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/&[a-zA-Z0-9#]+;/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          
+          if (cleanContent.length < 50) {
+            errors.push(`${url}: Content too short (${cleanContent.length} chars)`);
+            continue;
+          }
+          
+          // Generate unique document ID
+          const docId = `batch_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 6)}`;
+          
+          // Add document to retriever
+          await retriever.addDocument(docId, cleanContent, {
+            title: documentTitle,
+            source: 'batch_url',
+            url: url,
+            fetchedAt: new Date().toISOString(),
+            batchIndex: i,
+            ...params.metadata
+          });
+          
+          results.push({
+            id: docId,
+            title: documentTitle,
+            url: url,
+            length: cleanContent.length
+          });
+          
+          console.error(`  ✅ Added: ${documentTitle} (${cleanContent.length} chars)`);
+          
+        } catch (error) {
+          console.error(`  ❌ Failed: ${error.message}`);
+          errors.push(`${url}: ${error.message}`);
+        }
+      }
+      
+      const stats = await retriever.getStats();
+      
+      let responseText = `✅ Batch processing completed!\n\n`;
+      responseText += `**Successfully processed: ${results.length}/${params.urls.length} URLs**\n\n`;
+      
+      if (results.length > 0) {
+        responseText += `**Added Documents:**\n`;
+        results.forEach((result, index) => {
+          responseText += `${index + 1}. **${result.title}**\n`;
+          responseText += `   - URL: ${result.url}\n`;
+          responseText += `   - Length: ${result.length} characters\n`;
+          responseText += `   - ID: ${result.id}\n\n`;
+        });
+      }
+      
+      if (errors.length > 0) {
+        responseText += `**Errors (${errors.length}):**\n`;
+        errors.forEach((error, index) => {
+          responseText += `${index + 1}. ${error}\n`;
+        });
+        responseText += `\n`;
+      }
+      
+      responseText += `**Updated Knowledge Base Stats:**\n`;
+      responseText += `- Total documents: ${stats.totalDocuments}\n`;
+      responseText += `- Average document length: ${Math.round(stats.averageDocumentLength)} characters\n`;
+      responseText += `- Database: ${stats.database}@${stats.host}\n`;
+      responseText += `- Embedding model: ${stats.modelName}`;
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: responseText
+          }
+        ]
+      };
+    } catch (error) {
+      console.error('Error in batch URL processing:', error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Error in batch processing: ${error.message}`
+          }
+        ]
+      };
+    }
+  }
+});
+
+// Add a tool to search/query the RAG system with hybrid search
   name: 'query_documents',
-  description: 'Search and retrieve relevant documents from the RAG knowledge base using hybrid BM25 + embedding search',
+  description: 'PRIORITY TOOL: Search project-specific documentation and knowledge base FIRST before using web search. Contains curated project docs, API references, code examples, and technical guidance.',
   parameters: z.object({
     query: z.string().describe('The search query'),
     limit: z.number().optional().describe('Maximum number of results to return (default: 5)'),
@@ -360,7 +495,7 @@ server.addTool({
 // Add a tool to get RAG service status
 server.addTool({
   name: 'get_rag_status',
-  description: 'Get the current status of the RAG service',
+  description: 'Get status of the project knowledge base - check what documentation and technical resources are available for this project',
   parameters: z.object({}),
   execute: async () => {
     try {
@@ -416,7 +551,7 @@ server.addTool({
 // Add a tool to list all documents
 server.addTool({
   name: 'list_documents',
-  description: 'List all documents in the RAG knowledge base',
+  description: 'List all project documentation and technical resources in the knowledge base to see what information is available',
   parameters: z.object({}),
   execute: async () => {
     try {
@@ -479,7 +614,7 @@ server.addTool({
 // Add a tool to remove documents
 server.addTool({
   name: 'remove_document',
-  description: 'Remove a document from the RAG knowledge base',
+  description: 'Remove outdated or incorrect documentation from the project knowledge base',
   parameters: z.object({
     id: z.string().describe('The document ID to remove')
   }),
