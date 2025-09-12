@@ -4,12 +4,15 @@
   "description": "A RAG prototype using PostgreSQL + pgvector with FastMCP",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "node mcp/server.js",
     "mcp": "node mcp/server.js",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker logs rag-postgres"
+    "docker:reset": "docker-compose down -v && docker-compose up -d",
+    "docker:logs": "docker logs rag-postgres",
+    "test:connection": "docker exec rag-postgres pg_isready -U raguser -d rag",
+    "test:db": "docker exec rag-postgres psql -U raguser -d rag -c \"SELECT 'Database ready!';\"",
+    "test:system": "node -e \"const { PostgreSQLRetriever } = require('./retriever/postgresql-retriever.js'); async function test() { const retriever = new PostgreSQLRetriever(); await retriever.initialize(); console.log('✅ RAG System ready!'); } test().catch(console.error);\""
   },
   "keywords": [
     "mcp",

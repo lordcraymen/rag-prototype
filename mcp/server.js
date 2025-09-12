@@ -96,14 +96,17 @@ server.addTool({
   }
 });
 
-// Add a tool to search/query the RAG system
+// Add a tool to search/query the RAG system with hybrid search
 server.addTool({
   name: 'query_documents',
-  description: 'Search and retrieve relevant documents from the RAG knowledge base',
+  description: 'Search and retrieve relevant documents from the RAG knowledge base using hybrid BM25 + embedding search',
   parameters: z.object({
     query: z.string().describe('The search query'),
     limit: z.number().optional().describe('Maximum number of results to return (default: 5)'),
-    threshold: z.number().optional().describe('Similarity threshold (0-1, default: 0.7)')
+    threshold: z.number().optional().describe('Similarity threshold (0-1, default: 0.05)'),
+    useHybrid: z.boolean().optional().describe('Use hybrid BM25+vector search (default: true)'),
+    bm25Weight: z.number().optional().describe('Weight for BM25 score (0-1, default: 0.3)'),
+    vectorWeight: z.number().optional().describe('Weight for vector similarity (0-1, default: 0.7)')
   }),
   execute: async (params) => {
     try {
@@ -111,18 +114,32 @@ server.addTool({
       await initializeRetriever();
       
       const limit = params.limit || 5;
-      const threshold = params.threshold || 0.05; // Very low threshold to get top-k results
+      const threshold = params.threshold || 0.05;
+      const useHybrid = params.useHybrid !== false; // Default to true
+      const bm25Weight = params.bm25Weight || 0.3;
+      const vectorWeight = params.vectorWeight || 0.7;
       
-      // Search for relevant documents with low threshold to get more results
-      const documents = await retriever.search(params.query, limit, threshold);
+      // Choose search method
+      let documents;
+      if (useHybrid) {
+        documents = await retriever.hybridSearch(params.query, limit, threshold, bm25Weight, vectorWeight);
+      } else {
+        documents = await retriever.search(params.query, limit, threshold);
+      }
       
       console.error('\n=== RAG QUERY ===');
       console.error(`Query: ${params.query}`);
+      console.error(`Search type: ${useHybrid ? 'Hybrid (BM25+Vector)' : 'Vector only'}`);
       console.error(`Documents found: ${documents.length}`);
       console.error(`Threshold: ${threshold}`);
       if (documents.length > 0) {
-        console.error(`Best match: ${(documents[0].similarity * 100).toFixed(1)}%`);
-        console.error(`Worst match: ${(documents[documents.length-1].similarity * 100).toFixed(1)}%`);
+        const bestDoc = documents[0];
+        if (useHybrid) {
+          console.error(`Best match: Hybrid=${(bestDoc.hybridScore * 100).toFixed(1)}% (Vector=${(bestDoc.similarity * 100).toFixed(1)}%, BM25=${bestDoc.bm25Score.toFixed(2)})`);
+        } else {
+          console.error(`Best match: ${(bestDoc.similarity * 100).toFixed(1)}%`);
+        }
+        console.error(`Worst match: ${useHybrid ? (documents[documents.length-1].hybridScore * 100).toFixed(1) : (documents[documents.length-1].similarity * 100).toFixed(1)}%`);
       }
       console.error('=================\n');
 
@@ -131,7 +148,7 @@ server.addTool({
           content: [
             {
               type: 'text',
-              text: `🔍 No documents found matching "${params.query}" in the knowledge base.\n\nThe system searched through all documents using Xenova embeddings (${retriever.modelName}) but found no relevant content.\n\nTry:\n- Using different keywords or synonyms\n- Adding more relevant documents to the knowledge base\n- Checking if the content you're looking for exists`
+              text: `🔍 No documents found matching "${params.query}" in the knowledge base.\n\nThe system searched through all documents using ${useHybrid ? 'hybrid BM25+vector' : 'vector'} search with Xenova embeddings (${retriever.modelName}) but found no relevant content.\n\nTry:\n- Using different keywords or synonyms\n- Adding more relevant documents to the knowledge base\n- Checking if the content you're looking for exists`
             }
           ]
         };
@@ -141,17 +158,29 @@ server.addTool({
       const result = await generator.generate(params.query, documents);
       
       // Format response with detailed source information including scores
-      let responseText = `🔍 **Query:** "${params.query}"\n\n`;
+      let responseText = `🔍 **Query:** "${params.query}"\n`;
+      responseText += `🔬 **Search Type:** ${useHybrid ? `Hybrid Search (BM25: ${Math.round(bm25Weight*100)}%, Vector: ${Math.round(vectorWeight*100)}%)` : 'Vector Search Only'}\n\n`;
       responseText += `**Generated Response:**\n${result.response}\n\n`;
       
       if (result.sources && result.sources.length > 0) {
-        responseText += `**Sources Used (with Relevance Scores):**\n`;
+        responseText += `**Sources Used (with ${useHybrid ? 'Hybrid' : 'Vector'} Scores):**\n`;
         result.sources.forEach((source, idx) => {
-          const relevanceLevel = source.similarity > 0.5 ? "High" : 
-                                source.similarity > 0.3 ? "Medium" : 
-                                source.similarity > 0.15 ? "Low" : "Very Low";
-          responseText += `${idx + 1}. **${source.title}** (${(source.similarity * 100).toFixed(1)}% - ${relevanceLevel} Relevance)\n`;
-          responseText += `   ${source.excerpt}\n\n`;
+          if (useHybrid) {
+            const hybridScore = documents[idx]?.hybridScore || source.similarity;
+            const bm25Score = documents[idx]?.bm25Score || 0;
+            const relevanceLevel = hybridScore > 0.5 ? "High" : 
+                                  hybridScore > 0.3 ? "Medium" : 
+                                  hybridScore > 0.15 ? "Low" : "Very Low";
+            responseText += `${idx + 1}. **${source.title}** (Hybrid: ${(hybridScore * 100).toFixed(1)}% - ${relevanceLevel})\n`;
+            responseText += `   📊 Vector: ${(source.similarity * 100).toFixed(1)}% | BM25: ${bm25Score.toFixed(2)} | Combined: ${(hybridScore * 100).toFixed(1)}%\n`;
+            responseText += `   ${source.excerpt}\n\n`;
+          } else {
+            const relevanceLevel = source.similarity > 0.5 ? "High" : 
+                                  source.similarity > 0.3 ? "Medium" : 
+                                  source.similarity > 0.15 ? "Low" : "Very Low";
+            responseText += `${idx + 1}. **${source.title}** (${(source.similarity * 100).toFixed(1)}% - ${relevanceLevel} Relevance)\n`;
+            responseText += `   ${source.excerpt}\n\n`;
+          }
         });
       }
       
@@ -159,14 +188,33 @@ server.addTool({
       if (documents.length > (result.sources?.length || 0)) {
         responseText += `**Additional Documents Found (Lower Relevance):**\n`;
         documents.slice(result.sources?.length || 0).forEach((doc, idx) => {
-          const relevanceLevel = doc.similarity > 0.3 ? "Medium" : 
-                                doc.similarity > 0.15 ? "Low" : "Very Low";
-          responseText += `${idx + (result.sources?.length || 0) + 1}. **${doc.metadata?.title || doc.id}** (${(doc.similarity * 100).toFixed(1)}% - ${relevanceLevel})\n`;
+          if (useHybrid) {
+            const relevanceLevel = doc.hybridScore > 0.3 ? "Medium" : 
+                                  doc.hybridScore > 0.15 ? "Low" : "Very Low";
+            responseText += `${idx + (result.sources?.length || 0) + 1}. **${doc.metadata?.title || doc.id}** (Hybrid: ${(doc.hybridScore * 100).toFixed(1)}% - ${relevanceLevel})\n`;
+            responseText += `   📊 Vector: ${(doc.similarity * 100).toFixed(1)}% | BM25: ${doc.bm25Score.toFixed(2)}\n`;
+          } else {
+            const relevanceLevel = doc.similarity > 0.3 ? "Medium" : 
+                                  doc.similarity > 0.15 ? "Low" : "Very Low";
+            responseText += `${idx + (result.sources?.length || 0) + 1}. **${doc.metadata?.title || doc.id}** (${(doc.similarity * 100).toFixed(1)}% - ${relevanceLevel})\n`;
+          }
           responseText += `   ${doc.content.substring(0, 80)}...\n\n`;
         });
       }
       
-      responseText += `**Search Metadata:**\n- Total documents found: ${documents.length}\n- Documents processed: ${result.metadata.documentsUsed}\n- Average similarity: ${(result.metadata.averageSimilarity * 100).toFixed(1)}%\n- Best match: ${documents.length > 0 ? (documents[0].similarity * 100).toFixed(1) + '%' : 'N/A'}\n- Embedding model: ${retriever.modelName}\n- Generated at: ${result.metadata.generatedAt}`;
+      responseText += `**Search Metadata:**\n- Total documents found: ${documents.length}\n- Documents processed: ${result.metadata.documentsUsed}\n- Search algorithm: ${useHybrid ? 'Hybrid BM25+Vector' : 'Vector only'}\n`;
+      
+      if (useHybrid && documents.length > 0) {
+        const avgHybrid = documents.reduce((sum, doc) => sum + doc.hybridScore, 0) / documents.length;
+        const avgVector = documents.reduce((sum, doc) => sum + doc.similarity, 0) / documents.length;
+        const avgBM25 = documents.reduce((sum, doc) => sum + doc.bm25Score, 0) / documents.length;
+        responseText += `- Average hybrid score: ${(avgHybrid * 100).toFixed(1)}%\n- Average vector similarity: ${(avgVector * 100).toFixed(1)}%\n- Average BM25 score: ${avgBM25.toFixed(2)}\n`;
+        responseText += `- Best hybrid match: ${(documents[0].hybridScore * 100).toFixed(1)}%\n`;
+      } else if (documents.length > 0) {
+        responseText += `- Average similarity: ${(result.metadata.averageSimilarity * 100).toFixed(1)}%\n- Best match: ${(documents[0].similarity * 100).toFixed(1)}%\n`;
+      }
+      
+      responseText += `- Embedding model: ${retriever.modelName}\n- Generated at: ${result.metadata.generatedAt}`;
 
       return {
         content: [

@@ -1,52 +1,241 @@
-# RAG Prototype with PostgreSQL + pgvector# RAG Prototype with MCP Interface
+# RAG Prototype with BM25 + Vector Hybrid Search
 
+A production-ready Retrieval-Augmented Generation (RAG) system using PostgreSQL + pgvector with hybrid BM25 + vector similarity search.
 
+## 🚀 Features
 
-A clean RAG (Retrieval-Augmented Generation) prototype using PostgreSQL with pgvector extension and FastMCP for VS Code integration.This project is a **Retrieval-Augmented Generation (RAG) prototype** featuring an MCP (Model Context Protocol) interface. It uses local embeddings and in-memory vector storage for a lightweight, self-contained RAG system.
+- **Hybrid Search**: Combines BM25 keyword matching with vector semantic similarity  
+- **PostgreSQL + pgvector**: Professional vector database with ACID properties
+- **MCP Integration**: Model Context Protocol server for VS Code integration
+- **Local Embeddings**: Uses Xenova/all-MiniLM-L6-v2 (no external API required)
+- **Configurable Weights**: Adjustable BM25/vector score combinations
+- **Automatic Triggers**: BM25 data updates automatically on document changes
 
+## 📋 Prerequisites
 
+- **Docker & Docker Compose**
+- **Node.js 18+** 
+- **Git**
 
-## Features## Features
+## 🛠️ Complete Setup (Fresh Start)
 
+### 1. Clone and Setup
+```bash
+git clone <repository-url>
+cd rag-protoype
+npm install
+```
 
+### 2. Start PostgreSQL Database
+```bash
+# Start database (includes automatic schema setup)
+docker-compose up -d
 
-- 🗄️ **PostgreSQL + pgvector**: Professional vector database with ACID properties- 🔍 **Document Storage & Retrieval**: Add documents and search using word-frequency based embeddings
+# Verify database is ready
+docker logs rag-postgres
 
-- 🧠 **Local Embeddings**: Xenova/all-MiniLM-L6-v2 (no external APIs needed)- 🤖 **Response Generation**: Intelligent response synthesis from retrieved documents
+# Check database connection
+docker exec rag-postgres psql -U raguser -d rag -c "SELECT 'Database ready!';"
+```
 
-- 🔍 **Top-K Semantic Search**: Intelligent relevance scoring with transparency- 🔌 **MCP Interface**: Integrates seamlessly with MCP-compatible tools and clients
+### 3. Test the System
+```bash
+# Start MCP server
+node mcp/server.js
 
-- 🔄 **Multi-Session Support**: Documents persist across VS Code instances- 📊 **Real-time Statistics**: Track document count, similarities, and system status
+# Or test directly with Node.js
+node -e "
+const { PostgreSQLRetriever } = require('./retriever/postgresql-retriever.js');
+async function test() {
+  const retriever = new PostgreSQLRetriever();
+  await retriever.initialize();
+  console.log('✅ RAG System ready!');
+}
+test().catch(console.error);
+"
+```
 
-- 🛠️ **FastMCP Integration**: 5 MCP tools for VS Code- 🚀 **Zero External Dependencies**: No external APIs or databases required
+## 🔧 Configuration
 
+### Database Connection
+Default settings (modify in `docker-compose.yml` if needed):
+- **Host**: localhost:5432
+- **Database**: rag  
+- **User**: raguser
+- **Password**: ragpassword
 
+### Search Parameters
+```javascript
+// Hybrid Search (recommended)
+const results = await retriever.hybridSearch(
+  'your query',
+  5,        // limit
+  0.05,     // threshold  
+  0.3,      // BM25 weight (30%)
+  0.7       // Vector weight (70%)
+);
 
-## Quick Start## Technologies
+// Vector-only Search
+const results = await retriever.search('your query', 5, 0.1);
+```
 
+## 🗄️ Database Schema
 
+The system automatically creates:
 
-1. **Start PostgreSQL Database**:- **FastMCP**: Provides the MCP interface for tool communication
+**Documents Table:**
+- `id`: Unique document identifier
+- `title`: Document title  
+- `content`: Full text content
+- `embedding`: 384-dimensional vector (all-MiniLM-L6-v2)
+- `metadata`: JSON metadata
+- `word_count`: Word count for BM25
+- `tsvector_content`: Full-text search vector
 
-   ```bash- **Local Embeddings**: Word-frequency based similarity matching
+**Functions:**
+- `hybrid_search_documents()`: BM25 + vector hybrid search
+- `search_documents_by_similarity()`: Vector-only search  
+- `bm25_score()`: BM25 relevance scoring
 
-   npm run docker:up- **In-Memory Storage**: Fast document storage and retrieval
+## 📚 Usage Examples
 
-   ```- **ES Modules**: Modern JavaScript module system
+### Add Documents via MCP
+```javascript
+// Use VS Code with MCP integration
+// or call MCP tools directly:
 
+await mcp_server.add_document({
+  title: "Sample Document",
+  content: "Your document content here..."
+});
+```
 
+### Search Documents
+```javascript
+// Hybrid Search (best results)
+const results = await mcp_server.query_documents({
+  query: "your search query",
+  limit: 5
+});
 
-2. **Start MCP Server**:## Getting Started
+// Results include:
+// - Hybrid score (BM25 + vector combined)
+// - Individual BM25 and vector scores
+// - Relevance rankings
+```
 
-   ```bash
+### Direct Database Access
+```javascript
+const { PostgreSQLRetriever } = require('./retriever/postgresql-retriever.js');
 
-   npm start1. **Install dependencies:**
+const retriever = new PostgreSQLRetriever();
+await retriever.initialize();
 
-   ```    ```bash
+// Add document
+await retriever.addDocument('doc1', 'Title', 'Content', {category: 'test'});
 
-    npm install
+// Hybrid search
+const results = await retriever.hybridSearch('query', 5);
+console.log(results.map(r => ({
+  title: r.metadata?.title,
+  hybrid: r.hybridScore,
+  vector: r.similarity, 
+  bm25: r.bm25Score
+})));
+```
 
-3. **Use in VS Code**: The RAG tools will be available in VS Code MCP panel    ```
+## 🚨 Troubleshooting
+
+### Database Issues
+```bash
+# Reset database completely
+docker-compose down -v
+docker-compose up -d
+
+# Check logs
+docker logs rag-postgres
+
+# Connect to database
+docker exec -it rag-postgres psql -U raguser -d rag
+```
+
+### Connection Issues
+```bash
+# Check if container is running
+docker ps
+
+# Test database connectivity  
+docker exec rag-postgres pg_isready -U raguser -d rag
+```
+
+### Embedding Issues
+```bash
+# Test embedding generation
+node -e "
+const { PostgreSQLRetriever } = require('./retriever/postgresql-retriever.js');
+async function test() {
+  const retriever = new PostgreSQLRetriever();
+  await retriever.initialize();
+  const embedding = await retriever.generateEmbedding('test');
+  console.log('Embedding dimension:', embedding.length);
+}
+test();
+"
+```
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   VS Code MCP   │────│  FastMCP Server  │────│  RAG Generator  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │ PostgreSQL + 🔍  │
+                       │ Retriever        │  
+                       └──────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │  PostgreSQL DB   │
+                       │  + pgvector      │
+                       │  + BM25 Hybrid   │
+                       └──────────────────┘
+```
+
+## 📊 Performance
+
+- **Hybrid Search**: Combines keyword precision with semantic understanding
+- **BM25 Weight 0.3**: Good for exact keyword matches
+- **Vector Weight 0.7**: Strong semantic similarity
+- **Optimal for**: Technical documents, mixed content, multilingual search
+
+## 🔄 Reset & Clean Start
+
+To completely reset the system:
+```bash
+# Stop and remove all data
+docker-compose down -v
+
+# Remove old containers
+docker system prune
+
+# Fresh start
+docker-compose up -d
+npm run start
+```
+
+## 📝 Dependencies
+
+- **@xenova/transformers**: Local embeddings (all-MiniLM-L6-v2)
+- **fastmcp**: MCP server framework  
+- **pg**: PostgreSQL client
+- **zod**: Schema validation
+
+---
+
+**🎯 This RAG system provides industry-standard hybrid search with transparent scoring and professional database persistence.**
 
 
 

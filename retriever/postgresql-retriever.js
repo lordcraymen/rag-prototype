@@ -184,6 +184,74 @@ export class PostgreSQLRetriever {
   }
 
   /**
+   * Hybrid search combining BM25 + Vector similarity
+   * @param {string} query - Search query
+   * @param {number} limit - Maximum results to return
+   * @param {number} threshold - Minimum similarity threshold (0-1)
+   * @param {number} bm25Weight - Weight for BM25 score (0-1)
+   * @param {number} vectorWeight - Weight for vector similarity (0-1)
+   */
+  async hybridSearch(query, limit = 5, threshold = 0.05, bm25Weight = 0.3, vectorWeight = 0.7) {
+    if (!this.initialized) {
+      throw new Error('PostgreSQLRetriever not initialized. Call initialize() first.');
+    }
+
+    try {
+      console.error(`[PostgreSQLRetriever] Hybrid search for: "${query}"`);
+      console.error(`[PostgreSQLRetriever] Weights - BM25: ${bm25Weight}, Vector: ${vectorWeight}`);
+      
+      // Generate query embedding
+      const queryEmbedding = await this.generateEmbedding(query);
+      const embeddingVector = `[${queryEmbedding.join(',')}]`;
+      
+      // Simplified hybrid search implementation
+      const searchQuery = `
+        SELECT 
+          d.id,
+          d.title,
+          d.content,
+          d.metadata,
+          d.created_at,
+          (1 - (d.embedding <=> $2::vector)) AS vector_similarity,
+          COALESCE(ts_rank_cd(d.tsvector_content, plainto_tsquery($1)) * 5.0, 0) AS bm25_score,
+          ($5::real * (1 - (d.embedding <=> $2::vector)) + $4::real * LEAST(COALESCE(ts_rank_cd(d.tsvector_content, plainto_tsquery($1)) * 5.0, 0) / 5.0, 1.0)) AS hybrid_score
+        FROM documents d
+        WHERE d.embedding <=> $2::vector < (1 - $3::real)
+        ORDER BY hybrid_score DESC
+        LIMIT $6
+      `;
+      
+      const result = await this.client.query(searchQuery, [
+        query,
+        embeddingVector, 
+        threshold,
+        bm25Weight,
+        vectorWeight,
+        limit
+      ]);
+      
+      const documents = result.rows.map(row => ({
+        id: row.id,
+        content: row.content,
+        metadata: row.metadata || {},
+        similarity: parseFloat(row.vector_similarity),
+        bm25Score: parseFloat(row.bm25_score || 0),
+        hybridScore: parseFloat(row.hybrid_score)
+      }));
+
+      console.error(`[PostgreSQLRetriever] Hybrid search found ${documents.length} documents`);
+      if (documents.length > 0) {
+        console.error(`[PostgreSQLRetriever] Best hybrid score: ${documents[0].hybridScore.toFixed(3)} (Vector: ${(documents[0].similarity * 100).toFixed(1)}%, BM25: ${documents[0].bm25Score.toFixed(2)})`);
+      }
+      
+      return documents;
+    } catch (error) {
+      console.error(`[PostgreSQLRetriever] Error in hybrid search:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Get document by ID
    * @param {string} id - Document ID
    */
