@@ -104,15 +104,21 @@ export class PostgreSQLRetriever {
       
       // Insert into database
       const query = `
-        INSERT INTO documents (id, title, content, embedding, metadata) 
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO documents (
+          id, title, content, embedding, metadata, 
+          source_url, source_type, fetched_at
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         ON CONFLICT (id) DO UPDATE SET
           title = EXCLUDED.title,
           content = EXCLUDED.content,
           embedding = EXCLUDED.embedding,
           metadata = EXCLUDED.metadata,
+          source_url = EXCLUDED.source_url,
+          source_type = EXCLUDED.source_type,
+          fetched_at = EXCLUDED.fetched_at,
           updated_at = NOW()
-        RETURNING id, title, content, metadata, created_at, updated_at
+        RETURNING id, title, content, metadata, created_at, updated_at, source_url, source_type, fetched_at
       `;
       
       const values = [
@@ -124,7 +130,10 @@ export class PostgreSQLRetriever {
           ...metadata,
           addedAt: new Date().toISOString(),
           length: content.length
-        })
+        }),
+        metadata.sourceUrl || metadata.url || null,
+        metadata.sourceType || metadata.source || 'manual',
+        metadata.fetchedAt ? new Date(metadata.fetchedAt) : null
       ];
       
       const result = await this.client.query(query, values);

@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS documents (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
+    -- Source tracking
+    source_url TEXT,
+    source_type VARCHAR(50) DEFAULT 'manual',
+    fetched_at TIMESTAMP,
     -- BM25 columns
     word_count INTEGER DEFAULT 0,
     avg_doc_length REAL DEFAULT 0,

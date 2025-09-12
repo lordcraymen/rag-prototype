@@ -134,31 +134,117 @@ server.addTool({
         };
       }
       
+// Function to extract readable content from HTML
+function extractContentFromHtml(html, url) {
+  // Remove script, style, and navigation elements
+  let cleanContent = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, ''); // Remove comments
+
+  // Extract title
+  const titleMatch = cleanContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const title = titleMatch ? titleMatch[1].trim() : new URL(url).pathname;
+
+  // Extract meta description
+  const metaDescMatch = cleanContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
+  const description = metaDescMatch ? metaDescMatch[1] : '';
+
+  // Convert headers to readable format with hierarchy
+  cleanContent = cleanContent
+    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h[1-6]>/gi, (match, level, text) => {
+      const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const prefix = '#'.repeat(parseInt(level));
+      return `\n\n${prefix} ${cleanText}\n\n`;
+    });
+
+  // Convert paragraphs and preserve structure
+  cleanContent = cleanContent
+    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (match, text) => {
+      const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      return cleanText ? `${cleanText}\n\n` : '';
+    });
+
+  // Convert lists
+  cleanContent = cleanContent
+    .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
+      const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
+      const listItems = items.map(item => {
+        const text = item.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        return text ? `• ${text}` : '';
+      }).filter(Boolean).join('\n');
+      return listItems ? `\n${listItems}\n\n` : '';
+    })
+    .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
+      const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
+      const listItems = items.map((item, index) => {
+        const text = item.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        return text ? `${index + 1}. ${text}` : '';
+      }).filter(Boolean).join('\n');
+      return listItems ? `\n${listItems}\n\n` : '';
+    });
+
+  // Convert code blocks
+  cleanContent = cleanContent
+    .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+      const cleanCode = code
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"');
+      return `\n\`\`\`\n${cleanCode}\n\`\`\`\n\n`;
+    })
+    .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, (match, code) => {
+      const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      return ` \`${cleanCode}\` `;
+    });
+
+  // Extract and preserve important links as markdown
+  cleanContent = cleanContent
+    .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (match, href, text) => {
+      const linkText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (linkText && href) {
+        // Convert relative URLs to absolute
+        try {
+          const absoluteUrl = new URL(href, url).href;
+          return ` [${linkText}](${absoluteUrl}) `;
+        } catch {
+          return ` [${linkText}](${href}) `;
+        }
+      }
+      return linkText || '';
+    });
+
+  // Remove remaining HTML tags
+  cleanContent = cleanContent
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&[a-zA-Z0-9#]+;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .trim();
+
+  return {
+    title,
+    content: cleanContent,
+    metadata: {
+      description,
+      originalUrl: url,
+      contentLength: cleanContent.length,
+      hasCodeBlocks: /```/.test(cleanContent),
+      hasLinks: /\[.*\]\(.*\)/.test(cleanContent)
+    }
+  };
+}
       // Get content
       const html = await response.text();
       
-      // Simple HTML parsing to extract text content
-      // Remove script and style tags
-      let cleanContent = html
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
-        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
-        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '');
-      
-      // Extract title if not provided
-      let documentTitle = params.title;
-      if (!documentTitle) {
-        const titleMatch = cleanContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-        documentTitle = titleMatch ? titleMatch[1].trim() : new URL(params.url).pathname;
-      }
-      
-      // Remove HTML tags and clean up
-      cleanContent = cleanContent
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/&[a-zA-Z0-9#]+;/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+      // Extract content using improved HTML processing
+      const extracted = extractContentFromHtml(html, params.url);
+      const documentTitle = params.title || extracted.title;
+      const cleanContent = extracted.content;
       
       if (cleanContent.length < 50) {
         return {
@@ -174,12 +260,16 @@ server.addTool({
       // Generate unique document ID
       const docId = `url_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Add document to retriever
+      // Add document to retriever with enhanced metadata
       const document = await retriever.addDocument(docId, cleanContent, {
         title: documentTitle,
         source: 'url',
-        url: params.url,
+        sourceUrl: params.url,
+        sourceType: 'web_fetch',
         fetchedAt: new Date().toISOString(),
+        description: extracted.metadata.description,
+        hasCodeBlocks: extracted.metadata.hasCodeBlocks,
+        hasLinks: extracted.metadata.hasLinks,
         ...params.metadata
       });
 
@@ -208,6 +298,202 @@ server.addTool({
           {
             type: 'text',
             text: `❌ Error fetching and adding document: ${error.message}`
+          }
+        ]
+      };
+    }
+  }
+});
+
+// Add a tool to fetch and process entire sitemap
+server.addTool({
+  name: 'add_documents_from_sitemap',
+  description: 'Fetch entire sitemap and batch-add all relevant documentation URLs to knowledge base. Perfect for comprehensive documentation coverage.',
+  parameters: z.object({
+    sitemapUrl: z.string().describe('URL to the sitemap.xml file'),
+    urlFilter: z.string().optional().describe('Filter pattern (regex) to match specific URLs (e.g., "/docs/" for documentation)'),
+    maxDocuments: z.number().optional().describe('Maximum number of documents to process (default: 50)'),
+    metadata: z.record(z.any()).optional().describe('Optional metadata to apply to all documents')
+  }),
+  execute: async (params) => {
+    try {
+      // Ensure retriever is initialized
+      await initializeRetriever();
+      
+      console.error('\n=== SITEMAP PROCESSING ===');
+      console.error(`Sitemap URL: ${params.sitemapUrl}`);
+      console.error(`Filter: ${params.urlFilter || 'none'}`);
+      console.error(`Max docs: ${params.maxDocuments || 50}`);
+      console.error('=========================\n');
+      
+      // Fetch sitemap
+      let response;
+      try {
+        response = await fetch(params.sitemapUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `❌ Failed to fetch sitemap: ${error.message}`
+            }
+          ]
+        };
+      }
+      
+      const sitemapXml = await response.text();
+      
+      // Extract URLs from sitemap XML
+      const urlRegex = /<loc>(.*?)<\/loc>/g;
+      const allUrls = [];
+      let match;
+      
+      while ((match = urlRegex.exec(sitemapXml)) !== null) {
+        allUrls.push(match[1]);
+      }
+      
+      console.error(`Found ${allUrls.length} URLs in sitemap`);
+      
+      // Filter URLs if pattern provided
+      let filteredUrls = allUrls;
+      if (params.urlFilter) {
+        const filterRegex = new RegExp(params.urlFilter, 'i');
+        filteredUrls = allUrls.filter(url => filterRegex.test(url));
+        console.error(`Filtered to ${filteredUrls.length} URLs matching "${params.urlFilter}"`);
+      }
+      
+      // Limit number of documents
+      const maxDocs = params.maxDocuments || 50;
+      if (filteredUrls.length > maxDocs) {
+        filteredUrls = filteredUrls.slice(0, maxDocs);
+        console.error(`Limited to first ${maxDocs} URLs`);
+      }
+      
+      // Process URLs in batches
+      const results = [];
+      const errors = [];
+      const batchSize = 5; // Process 5 URLs at a time
+      
+      for (let i = 0; i < filteredUrls.length; i += batchSize) {
+        const batch = filteredUrls.slice(i, i + batchSize);
+        console.error(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(filteredUrls.length/batchSize)}: ${batch.length} URLs`);
+        
+        // Process batch sequentially to avoid overwhelming the server
+        for (const url of batch) {
+          try {
+            console.error(`  [${i + batch.indexOf(url) + 1}/${filteredUrls.length}] ${url}`);
+            
+            // Fetch content from URL
+            const urlResponse = await fetch(url);
+            if (!urlResponse.ok) {
+              throw new Error(`HTTP ${urlResponse.status}: ${urlResponse.statusText}`);
+            }
+            
+            const html = await urlResponse.text();
+            
+            // Extract content using improved HTML processing
+            const extracted = extractContentFromHtml(html, url);
+            const documentTitle = extracted.title;
+            const cleanContent = extracted.content;
+            
+            if (cleanContent.length < 50) {
+              errors.push(`${url}: Content too short (${cleanContent.length} chars)`);
+              continue;
+            }
+            
+            // Generate unique document ID
+            const docId = `sitemap_${Date.now()}_${i + batch.indexOf(url)}_${Math.random().toString(36).substr(2, 6)}`;
+            
+            // Add document to retriever with enhanced metadata
+            await retriever.addDocument(docId, cleanContent, {
+              title: documentTitle,
+              source: 'sitemap',
+              sourceUrl: url,
+              sourceType: 'sitemap_fetch',
+              fetchedAt: new Date().toISOString(),
+              sitemapUrl: params.sitemapUrl,
+              batchIndex: i + batch.indexOf(url),
+              description: extracted.metadata.description,
+              hasCodeBlocks: extracted.metadata.hasCodeBlocks,
+              hasLinks: extracted.metadata.hasLinks,
+              ...params.metadata
+            });
+            
+            results.push({
+              id: docId,
+              title: documentTitle,
+              url: url,
+              length: cleanContent.length
+            });
+            
+            console.error(`    ✅ Added: ${documentTitle} (${cleanContent.length} chars)`);
+            
+            // Small delay to be nice to the server
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+          } catch (error) {
+            console.error(`    ❌ Failed: ${error.message}`);
+            errors.push(`${url}: ${error.message}`);
+          }
+        }
+      }
+      
+      const stats = await retriever.getStats();
+      
+      let responseText = `🗺️ **Sitemap processing completed!**\n\n`;
+      responseText += `**Results:**\n`;
+      responseText += `- Successfully processed: **${results.length}/${filteredUrls.length}** URLs\n`;
+      responseText += `- Total URLs in sitemap: ${allUrls.length}\n`;
+      responseText += `- URLs after filtering: ${filteredUrls.length}\n`;
+      responseText += `- Errors: ${errors.length}\n\n`;
+      
+      if (results.length > 0) {
+        responseText += `**Successfully Added Documents:**\n`;
+        results.slice(0, 10).forEach((result, index) => {
+          responseText += `${index + 1}. **${result.title}**\n`;
+          responseText += `   - URL: ${result.url}\n`;
+          responseText += `   - Length: ${result.length} characters\n\n`;
+        });
+        
+        if (results.length > 10) {
+          responseText += `... and ${results.length - 10} more documents\n\n`;
+        }
+      }
+      
+      if (errors.length > 0 && errors.length <= 10) {
+        responseText += `**Errors:**\n`;
+        errors.forEach((error, index) => {
+          responseText += `${index + 1}. ${error}\n`;
+        });
+        responseText += `\n`;
+      } else if (errors.length > 10) {
+        responseText += `**Errors:** ${errors.length} errors occurred (first few shown above)\n\n`;
+      }
+      
+      responseText += `**Updated Knowledge Base Stats:**\n`;
+      responseText += `- Total documents: ${stats.totalDocuments}\n`;
+      responseText += `- Average document length: ${Math.round(stats.averageDocumentLength)} characters\n`;
+      responseText += `- Database: ${stats.database}@${stats.host}\n`;
+      responseText += `- Embedding model: ${stats.modelName}`;
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: responseText
+          }
+        ]
+      };
+    } catch (error) {
+      console.error('Error in sitemap processing:', error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `❌ Error processing sitemap: ${error.message}`
           }
         ]
       };
