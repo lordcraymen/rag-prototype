@@ -66,24 +66,62 @@ class FastMCPServerWrapper {
   /**
    * Start the server
    * @param {Object} options - Start options
-   * @param {string} options.transportType - Transport type ('stdio', 'sse', 'http')
+   * @param {string} options.transportType - Transport type ('stdio', 'sse', 'httpStream')
    * @param {number} options.port - Port for network transports
    * @param {string} options.host - Host for network transports
+   * @param {string} options.endpoint - Endpoint for SSE transport (default: "/sse") or httpStream (default: "/mcp")
+   * @param {boolean} options.stateless - Enable stateless mode for httpStream (default: false)
    */
   async start(options = {}) {
-    const { transportType = 'stdio', port, host } = options;
+    const { 
+      transportType = 'stdio', 
+      port = 3000, 
+      host = 'localhost',
+      endpoint = transportType === 'sse' ? '/sse' : '/mcp',
+      stateless = false
+    } = options;
     
     console.error(`Starting MCP server with ${transportType} transport...`);
     
-    try {
-      await this.server.start({
-        transportType,
+    let startConfig = { transportType };
+    
+    // Configure transport-specific options according to FastMCP API
+    if (transportType === 'sse') {
+      startConfig.sse = {
+        endpoint,
+        port
+      };
+      console.error(`SSE server will be available at http://${host}:${port}${endpoint}`);
+    } else if (transportType === 'httpStream') {
+      startConfig.httpStream = {
+        endpoint,
         port,
-        host
-      });
-      console.error(`MCP server started successfully on ${transportType}`);
+        stateless
+      };
+      console.error(`HTTP Stream server will be available at http://${host}:${port}${endpoint}`);
+      if (stateless) {
+        console.error(`🔧 Stateless mode enabled`);
+      }
+    } else if (transportType === 'http') {
+      // Legacy HTTP support - map to httpStream
+      console.error(`⚠️  HTTP transport deprecated, using httpStream instead`);
+      startConfig = {
+        transportType: 'httpStream',
+        httpStream: {
+          endpoint,
+          port,
+          stateless
+        }
+      };
+      console.error(`HTTP Stream server will be available at http://${host}:${port}${endpoint}`);
+    }
+    // stdio transport needs no additional configuration
+    
+    try {
+      await this.server.start(startConfig);
+      console.error(`✅ MCP server started successfully on ${transportType} transport`);
     } catch (error) {
-      console.error(`Failed to start MCP server: ${error.message}`);
+      console.error(`❌ Failed to start MCP server: ${error.message}`);
       throw error;
     }
   }

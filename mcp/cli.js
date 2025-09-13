@@ -53,6 +53,7 @@ function parseArgs(args) {
     transport: 'stdio',
     port: 3000,
     host: 'localhost',
+    endpoint: null, // Will be set based on transport type
     help: false,
     verbose: false
   };
@@ -64,11 +65,11 @@ function parseArgs(args) {
     switch (arg) {
       case '--transport':
       case '-t':
-        if (nextArg && ['stdio', 'http', 'sse'].includes(nextArg)) {
+        if (nextArg && ['stdio', 'http', 'httpStream', 'sse'].includes(nextArg)) {
           config.transport = nextArg;
           i++; // Skip next argument
         } else {
-          console.error('❌ Invalid transport type. Use: stdio, http, or sse');
+          console.error('❌ Invalid transport type. Use: stdio, http, httpStream, or sse');
           process.exit(1);
         }
         break;
@@ -161,6 +162,21 @@ async function main() {
     process.stdin.pause();
   }
 
+  // Set default endpoint based on transport type if not specified
+  if (!config.endpoint) {
+    switch (config.transport) {
+      case 'sse':
+        config.endpoint = '/sse';
+        break;
+      case 'httpStream':
+      case 'http':
+        config.endpoint = '/mcp';
+        break;
+      default:
+        config.endpoint = '/mcp'; // fallback
+    }
+  }
+
   try {
     if (config.verbose) {
       console.error('🔧 Configuration:', config);
@@ -221,14 +237,18 @@ async function main() {
     await server.start({
       transportType: config.transport,
       port: config.port,
-      host: config.host
+      host: config.host,
+      endpoint: config.endpoint
     });
     
-    if (config.transport === 'http') {
-      console.error(`✅ HTTP MCP server ready at http://${config.host}:${config.port}`);
+    if (config.transport === 'httpStream') {
+      console.error(`✅ HTTP Streaming MCP server ready at http://${config.host}:${config.port}${config.endpoint}`);
+      console.error('📚 Use this endpoint for ChatGPT Developer Mode integration');
+    } else if (config.transport === 'http') {
+      console.error(`✅ HTTP MCP server ready at http://${config.host}:${config.port}${config.endpoint} (using httpStream)`);
       console.error('📚 Use this endpoint for ChatGPT Developer Mode integration');
     } else if (config.transport === 'sse') {
-      console.error(`✅ SSE MCP server ready at http://${config.host}:${config.port}`);
+      console.error(`✅ SSE MCP server ready at http://${config.host}:${config.port}${config.endpoint}`);
       console.error('🔄 Server-Sent Events endpoint available for streaming');
     } else {
       console.error('✅ STDIO MCP server ready');
