@@ -88,8 +88,7 @@ RAG_MODEL_NAME=Xenova/all-MiniLM-L6-v2  # Embedding model
 ```
 mcp/
 ├── cli.js                    # Command-line interface
-├── server-new.js            # Main server entry point
-├── server.js               # Legacy server (kept for compatibility)
+├── server.js                # Main server entry point
 └── lib/
     ├── config.js           # Configuration management
     ├── server-utils.js     # Server utilities and logging
@@ -97,19 +96,42 @@ mcp/
     ├── rag-service.js      # RAG business logic
     ├── rag-tool-registry.js   # MCP tool registration
     └── html-content-extractor.js  # HTML processing utilities
+
+tests/
+├── test-config.js          # Configuration tests
+├── test-connection.js      # Database connection tests
+├── test-database.js        # Database functionality tests
+├── test-system.js          # End-to-end system tests
+├── run-all-tests.js        # Test runner
+└── README.md              # Test documentation
 ```
 
 ## 🧪 Testing
 
-Test the server functionality:
+The project includes a comprehensive test suite in the `tests/` directory:
 
 ```bash
-# Test database connection
-npm run test:connection
+# Run all tests
+npm test
+# or
+npm run test:all
 
-# Test database queries
-npm run test:db
+# Run individual tests
+npm run test:config      # Test configuration loading
+npm run test:connection  # Test PostgreSQL connection  
+npm run test:db         # Test database functionality
+npm run test:system     # Test complete RAG system
+```
 
+### Test Structure
+- **`tests/test-config.js`** - Configuration validation
+- **`tests/test-connection.js`** - Database connectivity
+- **`tests/test-database.js`** - SQL functionality  
+- **`tests/test-system.js`** - End-to-end RAG system
+- **`tests/run-all-tests.js`** - Test runner with summary
+
+### Manual API Testing
+```bash
 # Manual tool testing via curl (with server running)
 curl -X POST http://localhost:3000/mcp \
   -H "Content-Type: application/json" \
