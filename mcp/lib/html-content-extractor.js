@@ -2,8 +2,9 @@
  * HTML Content Extractor
  * Extracts clean, readable content from HTML pages
  */
+import cheerio from 'cheerio';
+
 export class HTMLContentExtractor {
-  
   /**
    * Extract readable content from HTML
    * @param {string} html - Raw HTML content
@@ -11,106 +12,139 @@ export class HTMLContentExtractor {
    * @returns {Object} Extracted content with metadata
    */
   extractContentFromHtml(html, url) {
-    // Remove script, style, and navigation elements
-    let cleanContent = html
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
-      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
-      .replace(/<!--[\s\S]*?-->/g, ''); // Remove comments
-
-    // Extract title
-    const titleMatch = cleanContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    const title = titleMatch ? titleMatch[1].trim() : new URL(url).pathname;
-
-    // Extract meta description
-    const metaDescMatch = cleanContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i);
-    const description = metaDescMatch ? metaDescMatch[1] : '';
-
-    // Convert headers to readable format with hierarchy
-    cleanContent = cleanContent
-      .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h[1-6]>/gi, (match, level, text) => {
-        const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        const prefix = '#'.repeat(parseInt(level));
-        return `\n\n${prefix} ${cleanText}\n\n`;
-      });
-
-    // Convert paragraphs and preserve structure
-    cleanContent = cleanContent
-      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (match, text) => {
-        const cleanText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        return cleanText ? `${cleanText}\n\n` : '';
-      });
-
-    // Convert lists
-    cleanContent = cleanContent
-      .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
-        const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
-        const listItems = items.map(item => {
-          const text = item.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          return text ? `• ${text}` : '';
-        }).filter(Boolean).join('\n');
-        return listItems ? `\n${listItems}\n\n` : '';
-      })
-      .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
-        const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
-        const listItems = items.map((item, index) => {
-          const text = item.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-          return text ? `${index + 1}. ${text}` : '';
-        }).filter(Boolean).join('\n');
-        return listItems ? `\n${listItems}\n\n` : '';
-      });
-
-    // Convert code blocks
-    cleanContent = cleanContent
-      .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
-        const cleanCode = code
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace(/&quot;/g, '"');
-        return `\n\`\`\`\n${cleanCode}\n\`\`\`\n\n`;
-      })
-      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, (match, code) => {
-        const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-        return ` \`${cleanCode}\` `;
-      });
-
-    // Extract and preserve important links as markdown
-    cleanContent = cleanContent
-      .replace(/<a[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (match, href, text) => {
-        const linkText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (linkText && href) {
-          // Convert relative URLs to absolute
-          try {
-            const absoluteUrl = new URL(href, url).href;
-            return ` [${linkText}](${absoluteUrl}) `;
-          } catch {
-            return ` [${linkText}](${href}) `;
-          }
-        }
-        return linkText || '';
-      });
-
-    // Remove remaining HTML tags
-    cleanContent = cleanContent
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&[a-zA-Z0-9#]+;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .replace(/\n\s*\n\s*\n/g, '\n\n')
-      .trim();
+    const $ = this._load(html);
+    this._removeNoise($);
+    const title = this._extractTitle($, url);
+    const description = this._extractDescription($);
+    this._convertHeaders($);
+    this._convertParagraphs($);
+    this._convertLists($);
+    this._convertCodeBlocks($);
+    this._convertLinks($, url);
+    const content = this._collectText($);
 
     return {
       title,
-      content: cleanContent,
+      content,
       metadata: {
         description,
         originalUrl: url,
-        contentLength: cleanContent.length,
-        hasCodeBlocks: /```/.test(cleanContent),
-        hasLinks: /\[.*\]\(.*\)/.test(cleanContent)
+        contentLength: content.length,
+        hasCodeBlocks: /```/.test(content),
+        hasLinks: /\[.*\]\(.*\)/.test(content)
       }
     };
+  }
+
+  _load(html) {
+    return cheerio.load(html);
+  }
+
+  _removeNoise($) {
+    $('script, style, nav, header, footer').remove();
+    $('*')
+      .contents()
+      .each((_, el) => {
+        if (el.type === 'comment') $(el).remove();
+      });
+  }
+
+  _extractTitle($, url) {
+    const title = $('title').first().text().trim();
+    return title || new URL(url).pathname;
+  }
+
+  _extractDescription($) {
+    return $('meta[name="description"]').attr('content') || '';
+  }
+
+  _convertHeaders($) {
+    $('h1,h2,h3,h4,h5,h6').each((_, el) => {
+      const level = parseInt(el.tagName.substring(1));
+      const text = $(el).text().replace(/\s+/g, ' ').trim();
+      $(el).replaceWith(`\n\n${'#'.repeat(level)} ${text}\n\n`);
+    });
+  }
+
+  _convertParagraphs($) {
+    $('p').each((_, el) => {
+      const text = $(el).text().replace(/\s+/g, ' ').trim();
+      $(el).replaceWith(text ? `${text}\n\n` : '');
+    });
+  }
+
+  _convertLists($) {
+    $('ul').each((_, ul) => {
+      const items = $(ul)
+        .children('li')
+        .map((i, li) => {
+          const text = $(li).text().replace(/\s+/g, ' ').trim();
+          return text ? `• ${text}` : '';
+        })
+        .get()
+        .filter(Boolean)
+        .join('\n');
+      $(ul).replaceWith(items ? `\n${items}\n\n` : '');
+    });
+    $('ol').each((_, ol) => {
+      const items = $(ol)
+        .children('li')
+        .map((i, li) => {
+          const text = $(li).text().replace(/\s+/g, ' ').trim();
+          return text ? `${i + 1}. ${text}` : '';
+        })
+        .get()
+        .filter(Boolean)
+        .join('\n');
+      $(ol).replaceWith(items ? `\n${items}\n\n` : '');
+    });
+  }
+
+  _convertCodeBlocks($) {
+    $('pre code').each((_, el) => {
+      const code = this._decodeEntities($(el).html() || '');
+      $(el).parent().replaceWith(`\n\`\`\`\n${code}\n\`\`\`\n\n`);
+    });
+    $('code').each((_, el) => {
+      if ($(el).parent().is('pre')) return;
+      const code = this._decodeEntities($(el).html() || '');
+      $(el).replaceWith(` \`${code}\` `);
+    });
+  }
+
+  _convertLinks($, url) {
+    $('a').each((_, el) => {
+      const text = $(el).text().replace(/\s+/g, ' ').trim();
+      const href = $(el).attr('href');
+      if (text && href) {
+        let absolute;
+        try {
+          absolute = new URL(href, url).href;
+        } catch {
+          absolute = href;
+        }
+        $(el).replaceWith(` [${text}](${absolute}) `);
+      } else {
+        $(el).replaceWith(text);
+      }
+    });
+  }
+
+  _collectText($) {
+    return $.root()
+      .text()
+      .replace(/\u00a0/g, ' ')
+      .replace(/\s+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
+  _decodeEntities(text) {
+    return text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"');
   }
 }
