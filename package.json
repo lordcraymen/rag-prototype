@@ -14,10 +14,12 @@
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
     "docker:logs": "docker logs rag-postgres",
-    "test:connection": "docker exec rag-postgres pg_isready -U raguser -d rag",
-    "test:db": "docker exec -e PGPASSWORD=ragpassword rag-postgres psql -U raguser -d rag -c \"SELECT 'Database ready!';\"",
-    "test:config": "node -e \"import('./mcp/lib/config.js').then(m => { const config = m.ConfigManager.getRagConfig(); console.log('✅ Config loaded:', config); });\"",
-    "test:system": "node -e \"import('./retriever/postgresql-retriever.js').then(m => { const retriever = new m.PostgreSQLRetriever(); retriever.initialize().then(() => console.log('✅ RAG System ready!')).catch(console.error); });\""
+    "test": "node tests/run-all-tests.js",
+    "test:all": "node tests/run-all-tests.js",
+    "test:config": "node tests/test-config.js",
+    "test:connection": "node tests/test-connection.js",
+    "test:db": "node tests/test-database.js",
+    "test:system": "node tests/test-system.js"
   },
   "keywords": [
     "mcp",
