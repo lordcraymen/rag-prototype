@@ -8,7 +8,7 @@ A powerful Retrieval-Augmented Generation (RAG) system built with FastMCP, Postg
 - **🗄️ Vector Database**: PostgreSQL + pgvector for efficient similarity search
 - **📡 Multiple Transports**: Support for stdio, HTTP streaming, and SSE
 - **🔍 Hybrid Search**: BM25 + vector similarity search
-- **🌐 Web Extraction**: Smart HTML content extraction with sitemap support
+- **🌐 Web Extraction**: Smart HTML content extraction with sitemap batch consumption support
 - **🔧 Modular Architecture**: Clean, extensible codebase
 
 ## 🚀 Quick Start
