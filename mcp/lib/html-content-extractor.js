@@ -2,7 +2,7 @@
  * HTML Content Extractor
  * Extracts clean, readable content from HTML pages
  */
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 
 export class HTMLContentExtractor {
   /**
