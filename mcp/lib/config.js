@@ -1,6 +1,29 @@
 /**
  * Configuration management for RAG MCP Server
+ * Provides a single entry point for both server and RAG settings.
  */
+
+// Default configuration values for the entire system
+const DEFAULT_CONFIG = {
+  server: {
+    name: 'RAG Service',
+    version: '1.0.0',
+    description: 'A RAG service with local embeddings and vector search',
+    framework: 'fastmcp'
+  },
+  rag: {
+    host: 'localhost',
+    port: 5432,
+    database: 'rag',
+    user: 'raguser',
+    password: 'ragpassword',
+    modelName: 'Xenova/all-MiniLM-L6-v2',
+    generatorConfig: {
+      maxResponseLength: 2000,
+      includeSourceInfo: true
+    }
+  }
+};
 
 export class ConfigManager {
   /**
@@ -88,32 +111,44 @@ export class ConfigManager {
   }
 
   /**
-   * Get RAG configuration from environment variables
+   * Return consolidated configuration with environment overrides.
+   * Environment variables take precedence over defaults.
    */
-  static getRagConfig() {
-    return {
-      host: process.env.RAG_DB_HOST || 'localhost',
-      port: parseInt(process.env.RAG_DB_PORT) || 5432,
-      database: process.env.RAG_DB_NAME || 'rag',
-      user: process.env.RAG_DB_USER || 'raguser',
-      password: process.env.RAG_DB_PASSWORD || 'ragpassword',
-      modelName: process.env.RAG_MODEL_NAME || 'Xenova/all-MiniLM-L6-v2',
-      generatorConfig: {
-        maxResponseLength: 2000,
-        includeSourceInfo: true
-      }
+  static getConfig() {
+    const server = {
+      ...DEFAULT_CONFIG.server,
+      name: process.env.MCP_SERVER_NAME || DEFAULT_CONFIG.server.name,
+      version: process.env.MCP_SERVER_VERSION || DEFAULT_CONFIG.server.version,
+      description:
+        process.env.MCP_SERVER_DESCRIPTION || DEFAULT_CONFIG.server.description,
+      framework: process.env.MCP_SERVER_FRAMEWORK || DEFAULT_CONFIG.server.framework
     };
+
+    const rag = {
+      ...DEFAULT_CONFIG.rag,
+      host: process.env.RAG_DB_HOST || DEFAULT_CONFIG.rag.host,
+      port: parseInt(process.env.RAG_DB_PORT) || DEFAULT_CONFIG.rag.port,
+      database: process.env.RAG_DB_NAME || DEFAULT_CONFIG.rag.database,
+      user: process.env.RAG_DB_USER || DEFAULT_CONFIG.rag.user,
+      password: process.env.RAG_DB_PASSWORD || DEFAULT_CONFIG.rag.password,
+      modelName: process.env.RAG_MODEL_NAME || DEFAULT_CONFIG.rag.modelName,
+      generatorConfig: { ...DEFAULT_CONFIG.rag.generatorConfig }
+    };
+
+    return { server, rag };
   }
 
   /**
-   * Get server configuration
+   * Convenience helper for obtaining only the server configuration
    */
   static getServerConfig() {
-    return {
-      name: 'RAG Service',
-      version: '1.0.0',
-      description: 'A RAG service with local embeddings and vector search',
-      framework: 'fastmcp'
-    };
+    return this.getConfig().server;
+  }
+
+  /**
+   * Convenience helper for obtaining only the RAG configuration
+   */
+  static getRagConfig() {
+    return this.getConfig().rag;
   }
 }

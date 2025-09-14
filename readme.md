@@ -62,6 +62,11 @@ node mcp/cli.js --transport httpStream --port 3000 --verbose
 
 ## ⚙️ Configuration
 
+All default server and RAG settings live in a single entry point:
+[`mcp/lib/config.js`](mcp/lib/config.js). The `ConfigManager` merges these
+defaults with environment variables and CLI arguments so overrides are applied
+consistently across the CLI and server.
+
 Set environment variables to customize the setup:
 
 ```bash

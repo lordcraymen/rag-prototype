@@ -65,35 +65,34 @@ async function main() {
 
   ServerUtils.setupTransport(config);
 
-  try {
-    ServerUtils.showStartupBanner(config);
+    try {
+      ServerUtils.showStartupBanner(config);
 
-    // Get configurations
-    const serverConfig = ConfigManager.getServerConfig();
-    const ragConfig = ConfigManager.getRagConfig();
+      // Get consolidated configuration
+      const { server: serverConfig, rag: ragConfig } = ConfigManager.getConfig();
 
-    // Create and setup server
-    const server = MCPServerFactory.createServer(serverConfig);
-    const ragService = new RAGService(ragConfig);
-    const toolRegistry = new RAGToolRegistry(ragService);
-    
-    toolRegistry.registerAllTools(server);
-    
-    if (config.verbose) {
-      ServerUtils.showVerboseInfo(config, ragConfig, server);
-    }
-    
-    // Start server
-    await server.start({
-      transportType: config.transport,
-      port: config.port,
-      host: config.host,
-      endpoint: config.endpoint
-    });
-    
-    ServerUtils.showSuccessMessage(config);
-    
-  } catch (error) {
+      // Create and setup server
+      const server = MCPServerFactory.createServer(serverConfig);
+      const ragService = new RAGService(ragConfig);
+      const toolRegistry = new RAGToolRegistry(ragService);
+
+      toolRegistry.registerAllTools(server);
+
+      if (config.verbose) {
+        ServerUtils.showVerboseInfo(config, ragConfig, server);
+      }
+
+      // Start server
+      await server.start({
+        transportType: config.transport,
+        port: config.port,
+        host: config.host,
+        endpoint: config.endpoint
+      });
+
+      ServerUtils.showSuccessMessage(config);
+
+    } catch (error) {
     console.error('❌ Failed to start server:', error.message);
     if (config.verbose) {
       console.error(error.stack);

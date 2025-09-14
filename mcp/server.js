@@ -5,27 +5,7 @@
 import { MCPServerFactory } from './lib/mcp-server-factory.js';
 import { RAGService } from './lib/rag-service.js';
 import { RAGToolRegistry } from './lib/rag-tool-registry.js';
-
-// Configuration
-const SERVER_CONFIG = {
-  name: 'RAG Service',
-  version: '1.0.0',
-  description: 'A RAG service with local embeddings and vector search',
-  framework: 'fastmcp' // Currently supports 'fastmcp', extensible for other frameworks
-};
-
-const RAG_CONFIG = {
-  host: 'localhost',
-  port: 5432,
-  database: 'rag',
-  user: 'raguser',
-  password: 'ragpassword',
-  modelName: 'Xenova/all-MiniLM-L6-v2',
-  generatorConfig: {
-    maxResponseLength: 2000,
-    includeSourceInfo: true
-  }
-};
+import { ConfigManager } from './lib/config.js';
 
 /**
  * Main server initialization
@@ -33,12 +13,15 @@ const RAG_CONFIG = {
 async function main() {
   try {
     console.error('🚀 Starting RAG MCP Server...');
-    
+
+    // Load consolidated configuration
+    const { server: serverConfig, rag: ragConfig } = ConfigManager.getConfig();
+
     // Create server instance using factory
-    const server = MCPServerFactory.createServer(SERVER_CONFIG);
-    
+    const server = MCPServerFactory.createServer(serverConfig);
+
     // Initialize RAG service
-    const ragService = new RAGService(RAG_CONFIG);
+    const ragService = new RAGService(ragConfig);
     
     // Register all RAG tools
     const toolRegistry = new RAGToolRegistry(ragService);
