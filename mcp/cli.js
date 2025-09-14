@@ -51,7 +51,7 @@ Environment Variables:
 }
 
 // Import modules only if not showing help
-import { MCPServerFactory, RAGService, RAGToolRegistry } from './server-new.js';
+import { MCPServerFactory, RAGService, RAGToolRegistry } from './server.js';
 import { ConfigManager } from './lib/config.js';
 import { ServerUtils } from './lib/server-utils.js';
 

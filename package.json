@@ -10,7 +10,6 @@
     "mcp:http": "node mcp/cli.js --transport httpStream --port 3000",
     "mcp:sse": "node mcp/cli.js --transport sse --port 3001",
     "mcp:dev": "node mcp/cli.js --transport httpStream --port 3000 --verbose",
-    "mcp:legacy": "node mcp/server.js",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
