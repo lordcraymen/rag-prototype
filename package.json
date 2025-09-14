@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A RAG prototype using PostgreSQL + pgvector with FastMCP",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lordcraymen/rag-prototype.git"
+  },
   "scripts": {
     "start": "node mcp/cli.js",
     "mcp": "node mcp/cli.js",
