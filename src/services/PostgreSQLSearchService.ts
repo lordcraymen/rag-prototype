@@ -77,32 +77,10 @@ export class PostgreSQLSearchService implements ISearchService {
             vectorWeight = 0.7
         } = options || {};
 
-        // First, generate embedding for the query (this should be done by the caller, but we'll handle it here for now)
-        // Note: In the refactored architecture, this would be injected as a dependency
-        
-        const sql = `
-            SELECT * FROM hybrid_search_documents($1, $2, $3, $4, $5, $6)
-        `;
-
-        const rows = await this.connection.query(sql, [
-            query,          // search_query
-            '[]',           // query_embedding (placeholder - would need actual embedding)
-            limit,          // result_limit
-            threshold,      // similarity_threshold
-            bm25Weight,     // bm25_weight
-            vectorWeight    // vector_weight
-        ]);
-
-        return rows.map((row: any) => ({
-            id: row.id,
-            title: row.title,
-            content: row.content,
-            metadata: row.metadata || {},
-            score: parseFloat(row.combined_score),
-            bm25_score: parseFloat(row.bm25_score),
-            vector_score: parseFloat(row.vector_score),
-            rank: parseInt(row.rank)
-        }));
+        // For now, fall back to BM25 search since we need embeddings from the service layer
+        // The proper fix would be to inject the embedding service or get embeddings from the caller
+        console.warn('⚠️ hybridSearch falling back to BM25 search - embedding generation needed at service layer');
+        return this.bm25Search(query, limit);
     }
 
     // Helper method for raw SQL queries

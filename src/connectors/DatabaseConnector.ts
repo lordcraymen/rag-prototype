@@ -64,7 +64,12 @@ export abstract class DatabaseConnector implements IDatabaseConnector {
     }
 
     async hybridSearch(query: string, options?: Partial<SearchOptions>): Promise<SearchResult[]> {
-        return this.searchService.hybridSearch(query, options);
+        // Generate embedding for the query first
+        const embedding = await this.embeddingService.generateEmbedding(query);
+        
+        // For now, use vector search since hybridSearch in the service layer needs refactoring
+        // The proper implementation would pass both the query text and embedding to the service
+        return this.searchService.vectorSearch(embedding, options?.limit, options?.threshold);
     }
 
     // Utility methods for document validation
