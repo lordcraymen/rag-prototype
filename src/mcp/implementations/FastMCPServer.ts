@@ -14,8 +14,10 @@ export class FastMCPServer extends MCPServer {
     constructor(config: MCPServerConfig) {
         super(config);
         
-        this.fastMCP = new FastMCP(config.name, {
-            version: config.version
+        // FastMCP constructor mit korrektem ServerOptions
+        this.fastMCP = new FastMCP({
+            name: config.name,
+            version: config.version as `${number}.${number}.${number}`
         });
     }
 
@@ -51,14 +53,23 @@ export class FastMCPServer extends MCPServer {
             // Transport-spezifische Konfiguration
             switch (this.config.transport) {
                 case 'stdio':
-                    await this.startStdio();
+                    await this.fastMCP.start({
+                        transportType: 'stdio'
+                    });
                     break;
                 case 'http':
-                    await this.startHttp();
+                    await this.fastMCP.start({
+                        transportType: 'httpStream',
+                        httpStream: {
+                            port: this.config.port || 3000,
+                            host: this.config.host || 'localhost'
+                        }
+                    });
                     break;
                 case 'sse':
-                    await this.startSSE();
-                    break;
+                    throw new Error('SSE transport not supported by FastMCP. Use httpStream instead.');
+                case 'websocket':
+                    throw new Error('WebSocket transport not supported by FastMCP. Use httpStream instead.');
                 default:
                     throw new Error(`Unsupported transport: ${this.config.transport}`);
             }
@@ -79,8 +90,7 @@ export class FastMCPServer extends MCPServer {
         try {
             console.error('🛑 Stopping FastMCP Server...');
             
-            // FastMCP hat keine explizite stop() Methode
-            // Der Server wird durch Prozess-Exit beendet
+            await this.fastMCP.stop();
             
             this.onServerStopped();
             console.error('✅ FastMCP Server stopped');
@@ -95,18 +105,23 @@ export class FastMCPServer extends MCPServer {
      */
     protected onToolAdded(tool: MCPTool): void {
         try {
-            // Zod Schema zu JSON Schema konvertieren
-            const jsonSchema = zodToJsonSchema(tool.inputSchema);
-            
             console.error(`📝 Registering tool: ${tool.name}`);
             
-            // Tool bei FastMCP registrieren
+            // Tool bei FastMCP registrieren mit korrekter API
             this.fastMCP.addTool({
                 name: tool.name,
                 description: tool.description,
-                inputSchema: jsonSchema,
-                handler: async (args: any) => {
-                    return await this.callTool(tool.name, args);
+                parameters: tool.inputSchema, // Zod Schema direkt verwenden
+                execute: async (args: any, context: any) => {
+                    const result = await this.callTool(tool.name, args);
+                    
+                    // FastMCP erwartet spezielle Content-Typen
+                    if (typeof result === 'string') {
+                        return result;
+                    }
+                    
+                    // JSON Objekt als String zurückgeben
+                    return JSON.stringify(result, null, 2);
                 }
             });
 
@@ -124,46 +139,6 @@ export class FastMCPServer extends MCPServer {
         // FastMCP hat keine removeTool Methode
         // Tools können nur beim Start registriert werden
         console.error(`⚠️ Tool removal not supported in FastMCP: ${name}`);
-    }
-
-    /**
-     * Stdio Transport starten
-     */
-    private async startStdio(): Promise<void> {
-        const transport = this.config.verbose ? 'stdio-verbose' : 'stdio';
-        await this.fastMCP.connect({ transport });
-    }
-
-    /**
-     * HTTP Transport starten
-     */
-    private async startHttp(): Promise<void> {
-        const port = this.config.port || 3000;
-        const host = this.config.host || 'localhost';
-        
-        await this.fastMCP.connect({ 
-            transport: 'httpStream',
-            httpStreamConfig: {
-                port,
-                host
-            }
-        });
-    }
-
-    /**
-     * SSE Transport starten
-     */
-    private async startSSE(): Promise<void> {
-        const port = this.config.port || 3001;
-        const host = this.config.host || 'localhost';
-        
-        await this.fastMCP.connect({ 
-            transport: 'sse',
-            sseConfig: {
-                port,
-                host
-            }
-        });
     }
 
     /**

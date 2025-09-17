@@ -1,6 +1,7 @@
 // MCP Server Factory - Austauschbare Implementierungen
 import { MCPServer, type MCPServerConfig, type MCPServerFactory, type MCPTransport } from '@/types/mcp-interfaces.js';
 import { StdioMCPServer } from './implementations/StdioMCPServer.js';
+import { FastMCPServer } from './implementations/FastMCPServer.js';
 
 /**
  * Standard MCP Server Factory
@@ -14,16 +15,17 @@ export class DefaultMCPServerFactory implements MCPServerFactory {
     createServer(config: MCPServerConfig): MCPServer {
         switch (config.transport) {
             case 'stdio':
-                return new StdioMCPServer(config);
+                // Standardmäßig FastMCP für stdio verwenden
+                return new FastMCPServer(config);
             
             case 'http':
-                throw new Error('HTTP transport not yet implemented. Use stdio transport.');
+                return new FastMCPServer(config);
             
             case 'sse':
-                throw new Error('SSE transport not yet implemented. Use stdio transport.');
+                throw new Error('SSE transport not supported. Use http transport with FastMCP.');
             
             case 'websocket':
-                throw new Error('WebSocket transport not yet implemented. Use stdio transport.');
+                throw new Error('WebSocket transport not yet implemented. Use stdio or http transport.');
             
             default:
                 throw new Error(`Unsupported transport type: ${config.transport}`);
@@ -34,12 +36,29 @@ export class DefaultMCPServerFactory implements MCPServerFactory {
      * Unterstützte Transports abrufen
      */
     getSupportedTransports(): MCPTransport[] {
-        return ['stdio']; // Erweitert sich mit mehr Implementierungen
+        return ['stdio', 'http']; // FastMCP unterstützt stdio und httpStream
     }
 }
 
 /**
- * Globale Factory Instance
+ * Alternative Factory für stdio-only mit StdioMCPServer
+ */
+export class StdioMCPServerFactory implements MCPServerFactory {
+    
+    createServer(config: MCPServerConfig): MCPServer {
+        if (config.transport !== 'stdio') {
+            throw new Error('StdioMCPServerFactory only supports stdio transport');
+        }
+        return new StdioMCPServer(config);
+    }
+
+    getSupportedTransports(): MCPTransport[] {
+        return ['stdio'];
+    }
+}
+
+/**
+ * Globale Factory Instance (jetzt mit FastMCP als Standard)
  */
 export const mcpServerFactory = new DefaultMCPServerFactory();
 
@@ -51,7 +70,7 @@ export function createMCPServer(config: MCPServerConfig): MCPServer {
 }
 
 /**
- * Server mit Standard-Konfiguration erstellen
+ * Server mit Standard-Konfiguration erstellen (jetzt mit FastMCP)
  */
 export function createStdioMCPServer(name: string, version = '1.0.0'): MCPServer {
     return createMCPServer({
@@ -63,7 +82,20 @@ export function createStdioMCPServer(name: string, version = '1.0.0'): MCPServer
 }
 
 /**
- * Server mit HTTP-Konfiguration erstellen
+ * Server mit stdio-only StdioMCPServer erstellen
+ */
+export function createStdioOnlyMCPServer(name: string, version = '1.0.0'): MCPServer {
+    const factory = new StdioMCPServerFactory();
+    return factory.createServer({
+        name,
+        version,
+        transport: 'stdio',
+        verbose: process.env.DEBUG === 'true'
+    });
+}
+
+/**
+ * Server mit HTTP-Konfiguration erstellen (FastMCP)
  */
 export function createHttpMCPServer(
     name: string, 
