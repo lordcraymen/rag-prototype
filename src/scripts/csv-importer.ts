@@ -126,7 +126,7 @@ async function main() {
 🔧 TypeScript CSV Importer
 
 Usage:
-  tsx scripts/csv-importer.ts <csv-file> [options]
+  tsx src/scripts/csv-importer.ts <csv-file> [options]
 
 Options:
   --delimiter=<char>     CSV delimiter (default: ',')
@@ -135,9 +135,9 @@ Options:
   --dry-run            Show what would be imported without actually importing
 
 Examples:
-  tsx scripts/csv-importer.ts data.csv
-  tsx scripts/csv-importer.ts STAB-ANFORDERUNGEN.CSV --delimiter=";" --encoding="utf8"
-  tsx scripts/csv-importer.ts data.csv --dry-run
+  tsx src/scripts/csv-importer.ts data.csv
+  tsx src/scripts/csv-importer.ts STAB-ANFORDERUNGEN.CSV --delimiter=";" --encoding="utf8"
+  tsx src/scripts/csv-importer.ts data.csv --dry-run
         `);
         process.exit(1);
     }
@@ -192,7 +192,7 @@ Examples:
 }
 
 // Run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && (process.argv[1].includes('csv-importer') || process.argv[1].endsWith('csv-importer.ts'))) {
     main().catch(error => {
         console.error('Unhandled error:', error);
         process.exit(1);

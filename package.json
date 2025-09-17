@@ -12,7 +12,6 @@
     "build:watch": "tsc --watch",
     "start": "npx tsx src/mcp/server.ts",
     "dev": "npx tsx --watch src/mcp/server.ts",
-    "start:legacy": "node legacy/mcp/cli.js",
     "mcp": "npx tsx src/mcp/server.ts",
     "mcp:stdio": "npx tsx src/mcp/server.ts --transport stdio",
     "mcp:http": "npx tsx src/mcp/server.ts --transport httpStream --port 3000",
@@ -28,7 +27,7 @@
     "test:connection": "npx tsx tests/test-connection.ts",
     "test:db": "npx tsx tests/test-database.ts",
     "test:system": "npx tsx tests/test-system.ts",
-    "csv:import": "npx tsx scripts/csv-importer.ts"
+    "csv:import": "npx tsx src/scripts/csv-importer.ts"
   },
   "keywords": [
     "mcp",
