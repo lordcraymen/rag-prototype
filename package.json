@@ -8,22 +8,26 @@
     "url": "git+https://github.com/lordcraymen/rag-prototype.git"
   },
   "scripts": {
-    "start": "node mcp/cli.js",
-    "mcp": "node mcp/cli.js",
-    "mcp:stdio": "node mcp/cli.js --transport stdio",
-    "mcp:http": "node mcp/cli.js --transport httpStream --port 3000",
-    "mcp:sse": "node mcp/cli.js --transport sse --port 3001",
-    "mcp:dev": "node mcp/cli.js --transport httpStream --port 3000 --verbose",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "npm run build && node dist/mcp/server.js",
+    "dev": "npm run build:watch",
+    "start:legacy": "node mcp/cli.js",
+    "mcp": "npm run build && node dist/mcp/server.js",
+    "mcp:stdio": "npm run build && node dist/mcp/server.js --transport stdio",
+    "mcp:http": "npm run build && node dist/mcp/server.js --transport httpStream --port 3000",
+    "mcp:sse": "npm run build && node dist/mcp/server.js --transport sse --port 3001",
+    "mcp:dev": "npm run build && node dist/mcp/server.js --transport httpStream --port 3000 --verbose",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
     "docker:logs": "docker logs rag-postgres",
-    "test": "node tests/run-all-tests.js",
-    "test:all": "node tests/run-all-tests.js",
-    "test:config": "node tests/test-config.js",
-    "test:connection": "node tests/test-connection.js",
-    "test:db": "node tests/test-database.js",
-    "test:system": "node tests/test-system.js"
+    "test": "npm run build && node dist/tests/run-all-tests.js",
+    "test:all": "npm run build && node dist/tests/run-all-tests.js",
+    "test:config": "npm run build && node dist/tests/test-config.js",
+    "test:connection": "npm run build && node dist/tests/test-connection.js",
+    "test:db": "npm run build && node dist/tests/test-database.js",
+    "test:system": "npm run build && node dist/tests/test-system.js"
   },
   "keywords": [
     "mcp",
@@ -40,10 +44,16 @@
   "type": "module",
   "dependencies": {
     "@xenova/transformers": "^2.17.2",
+    "cheerio": "^1.0.0-rc.12",
+    "csv-parse": "^6.1.0",
     "fastmcp": "^3.16.0",
     "node-fetch": "^3.3.2",
+    "openai": "^5.20.3",
     "pg": "^8.16.3",
-    "zod": "^3.25.76",
-    "cheerio": "^1.0.0-rc.12"
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.1",
+    "@types/pg": "^8.15.5"
   }
 }
