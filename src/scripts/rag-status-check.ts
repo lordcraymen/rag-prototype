@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 // Quick RAG Status Check Script
 
-import { PostgreSQLXenovaConnector } from '@/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { PostgreSQLConnector } from '@/connectors/postgresql/PostgreSQLConnector.js';
+import { createXenovaConnector } from '@/connectors/postgresql/factories.js';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -38,7 +39,7 @@ async function checkRAGStatus() {
         console.error('🔍 Checking RAG database status...');
         
         const config = loadConfig();
-        const connector = new PostgreSQLXenovaConnector(config.database, config.embedding.model);
+        const connector: PostgreSQLConnector = createXenovaConnector(config.database, { model: config.embedding?.model });
         
         // Connect
         await connector.connect();

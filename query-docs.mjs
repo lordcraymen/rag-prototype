@@ -1,5 +1,5 @@
 // Quick script to query documents in the database
-import { PostgreSQLXenovaConnector } from './src/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { createXenovaConnector } from './src/connectors/postgresql/factories.js';
 
 const config = { 
     host: 'localhost', 
@@ -9,7 +9,7 @@ const config = {
     password: 'postgres' 
 };
 
-const db = new PostgreSQLXenovaConnector(config);
+const db = createXenovaConnector(config);
 
 try {
     await db.connect();

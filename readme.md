@@ -132,8 +132,9 @@ src/
 ├── connectors/               # Database connectors
 │   └── postgresql/           # PostgreSQL specific connectors
 │       ├── PostgreSQLConnection.ts      # Basic connection
-│       ├── PostgreSQLConnector.ts       # Standard connector
-│       └── PostgreSQLXenovaConnector.ts # Xenova embeddings connector
+│       ├── PostgreSQLConnector.ts       # Unified connector
+│       ├── factories.ts                # Connector factory helpers
+│       └── helpers/                    # Embedding helper strategies (e.g., XenovaBatchEmbeddingHelper)
 ├── services/                 # Service layer
 │   ├── OpenAIEmbeddingService.ts        # OpenAI embeddings (optional)
 │   ├── XenovaEmbeddingService.ts        # Local Xenova embeddings

@@ -3,7 +3,8 @@
 
 import { createStdioMCPServer } from '@/mcp/server-factory.js';
 import { RAGTools } from '@/mcp/rag-tools.js';
-import { PostgreSQLXenovaConnector } from '@/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { createXenovaConnector } from '@/connectors/postgresql/factories.js';
+import { PostgreSQLConnector } from '@/connectors/postgresql/PostgreSQLConnector.js';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -37,7 +38,7 @@ function loadConfig() {
 
 // Global instances
 let server: any = null;
-let connector: PostgreSQLXenovaConnector | null = null;
+let connector: PostgreSQLConnector | null = null;
 
 async function initializeRagServer(): Promise<void> {
     try {
@@ -46,7 +47,7 @@ async function initializeRagServer(): Promise<void> {
         const config = loadConfig();
         
         // Create PostgreSQL Connector with local embeddings
-        connector = new PostgreSQLXenovaConnector(config.database, config.embedding.model);
+        connector = createXenovaConnector(config.database, { model: config.embedding?.model });
         await connector.connect();
         await connector.initializeDatabase();
         

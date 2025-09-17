@@ -1,6 +1,6 @@
 // RAG Tools mit Zod Schema Validation
 import { createTool, CommonSchemas } from '@/mcp/tool-builder.js';
-import { PostgreSQLXenovaConnector } from '@/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { IDatabaseConnector } from '@/types/database.js';
 import { z } from 'zod';
 
 /**
@@ -8,9 +8,9 @@ import { z } from 'zod';
  * Erstellt alle RAG Tools mit Zod Schema Validation
  */
 export class RAGTools {
-    private connector: PostgreSQLXenovaConnector;
+    private connector: IDatabaseConnector;
 
-    constructor(connector: PostgreSQLXenovaConnector) {
+    constructor(connector: IDatabaseConnector) {
         this.connector = connector;
     }
 
@@ -131,7 +131,7 @@ export class RAGTools {
                     documentCount,
                     architecture: 'typescript',
                     runtime: 'tsx-inline',
-                    embedding: 'xenova-local'
+                    embedding: status.embedding || 'unknown'
                 };
             })
             .build();

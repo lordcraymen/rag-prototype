@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { PostgreSQLXenovaConnector } from '../src/connectors/postgresql/PostgreSQLXenovaConnector';
+import { PostgreSQLConnector } from '../src/connectors/postgresql/PostgreSQLConnector';
 import { SearchOptions } from '../src/types/index';
 
 // Mock the database connection
@@ -18,6 +18,7 @@ const mockEmbeddingService = {
   generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3, 0.4]),
   generateEmbeddings: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3, 0.4]]),
   getDimensions: vi.fn(() => 384),
+  isAvailable: vi.fn().mockResolvedValue(true),
   initializePipeline: vi.fn(),
   getModelInfo: vi.fn(() => ({
     model: 'Xenova/all-MiniLM-L6-v2',
@@ -45,19 +46,19 @@ const mockSearchService = {
 };
 
 describe('Database Connector Business Logic', () => {
-  let connector: PostgreSQLXenovaConnector;
+  let connector: PostgreSQLConnector;
 
   beforeEach(() => {
     vi.clearAllMocks();
     
     // Create connector with mocked dependencies
-    connector = new PostgreSQLXenovaConnector({
+    connector = new PostgreSQLConnector({
       host: 'localhost',
       port: 5432,
       database: 'rag',
       user: 'postgres',
       password: 'postgres'
-    });
+    }, { embeddingService: mockEmbeddingService as any });
     
     // Mock the postgresConnection to return stats
     const mockPostgresConnection = {

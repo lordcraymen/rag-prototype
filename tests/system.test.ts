@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { PostgreSQLXenovaConnector } from '../src/connectors/postgresql/PostgreSQLXenovaConnector';
+import { PostgreSQLConnector } from '../src/connectors/postgresql/PostgreSQLConnector';
+import { createXenovaConnector } from '../src/connectors/postgresql/factories';
 
 const testConfig = {
   host: 'localhost',
@@ -10,10 +11,10 @@ const testConfig = {
 };
 
 describe('RAG System Integration Tests', () => {
-  let connector: PostgreSQLXenovaConnector;
+  let connector: PostgreSQLConnector;
 
   beforeAll(async () => {
-    connector = new PostgreSQLXenovaConnector(testConfig);
+    connector = createXenovaConnector(testConfig);
     await connector.connect();
   });
 
