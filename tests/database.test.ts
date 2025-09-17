@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PostgreSQLXenovaConnector } from '../src/connectors/postgresql/PostgreSQLXenovaConnector';
-import { XenovaEmbeddingService } from '../src/services/XenovaEmbeddingService';
-import { PostgreSQLSearchService } from '../src/services/PostgreSQLSearchService';
-import { Document, SearchOptions } from '../src/types/index';
+import { SearchOptions } from '../src/types/index';
 
 // Mock the database connection
 const mockConnection = {

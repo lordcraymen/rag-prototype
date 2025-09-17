@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PostgreSQLSearchService } from '../src/services/PostgreSQLSearchService';
-import { PostgreSQLConnection } from '../src/connectors/postgresql/PostgreSQLConnection';
 
 // Mock the PostgreSQL connection
 const mockConnection = {

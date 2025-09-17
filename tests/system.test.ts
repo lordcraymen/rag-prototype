@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PostgreSQLXenovaConnector } from '../src/connectors/postgresql/PostgreSQLXenovaConnector';
-import { Document } from '../src/types/index';
 
 const testConfig = {
   host: 'localhost',
