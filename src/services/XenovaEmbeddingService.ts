@@ -21,9 +21,9 @@ export class XenovaEmbeddingService implements IEmbeddingService {
             // Dynamic import of @xenova/transformers
             const { pipeline } = await import('@xenova/transformers');
             
-            console.log(`🧠 Loading embedding model: ${this.model}...`);
+            console.error(`🧠 Loading embedding model: ${this.model}...`);
             this.pipeline = await pipeline('feature-extraction', this.model);
-            console.log('✅ Embedding model loaded successfully');
+            console.error('✅ Embedding model loaded successfully');
             
             return this.pipeline;
         } catch (error) {

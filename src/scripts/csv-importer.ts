@@ -61,11 +61,11 @@ class TypeScriptCSVImporter {
             throw new Error(`File not found: ${filePath}`);
         }
 
-        console.log(`📄 Starting CSV import from: ${filePath}`);
-        console.log(`🔧 Settings: delimiter="${delimiter}", encoding="${encoding}", validateText=${validateText}`);
+        console.error(`📄 Starting CSV import from: ${filePath}`);
+        console.error(`🔧 Settings: delimiter="${delimiter}", encoding="${encoding}", validateText=${validateText}`);
         
         if (dryRun) {
-            console.log('🧪 DRY RUN MODE - No documents will be actually imported');
+            console.error('🧪 DRY RUN MODE - No documents will be actually imported');
         }
 
         try {
@@ -80,20 +80,20 @@ class TypeScriptCSVImporter {
 
             const duration = Date.now() - startTime;
 
-            console.log('\n📊 Import Results:');
-            console.log(`✅ Successfully imported: ${result.imported} documents`);
-            console.log(`❌ Failed: ${result.failed} documents`);
-            console.log(`⏱️ Duration: ${duration}ms`);
-            console.log(`📈 Rate: ${(result.imported / (duration / 1000)).toFixed(2)} docs/sec`);
+            console.error('\n📊 Import Results:');
+            console.error(`✅ Successfully imported: ${result.imported} documents`);
+            console.error(`❌ Failed: ${result.failed} documents`);
+            console.error(`⏱️ Duration: ${duration}ms`);
+            console.error(`📈 Rate: ${(result.imported / (duration / 1000)).toFixed(2)} docs/sec`);
 
             if (result.errors && result.errors.length > 0) {
-                console.log(`\n⚠️ Errors encountered:`);
+                console.error(`\n⚠️ Errors encountered:`);
                 result.errors.slice(0, 10).forEach((error: string) => {
-                    console.log(`  - ${error}`);
+                    console.error(`  - ${error}`);
                 });
                 
                 if (result.errors.length > 10) {
-                    console.log(`  ... and ${result.errors.length - 10} more errors`);
+                    console.error(`  ... and ${result.errors.length - 10} more errors`);
                 }
             }
 
@@ -122,7 +122,7 @@ async function main() {
     const args = process.argv.slice(2);
     
     if (args.length === 0) {
-        console.log(`
+        console.error(`
 🔧 TypeScript CSV Importer
 
 Usage:
@@ -159,7 +159,7 @@ Examples:
     }
 
     try {
-        console.log('🚀 Initializing TypeScript CSV Importer with local embeddings...');
+        console.error('🚀 Initializing TypeScript CSV Importer with local embeddings...');
         
         const config = loadConfig();
         
@@ -171,15 +171,15 @@ Examples:
         
         // Show current status
         const status = await importer.getStatus();
-        console.log(`📊 Current status: ${status.documentCount} documents in database`);
+        console.error(`📊 Current status: ${status.documentCount} documents in database`);
         
         // Run import
         const result = await importer.importCSV(options);
         
         if (result.success) {
-            console.log('\n🎉 Import completed successfully!');
+            console.error('\n🎉 Import completed successfully!');
         } else {
-            console.log('\n⚠️ Import completed with errors');
+            console.error('\n⚠️ Import completed with errors');
             process.exit(1);
         }
 

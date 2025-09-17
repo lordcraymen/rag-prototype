@@ -23,7 +23,7 @@ export class PostgreSQLXenovaConnector extends DatabaseConnector {
         this.postgresConnection = connection;
         this.config = config;
         
-        console.log(`🧠 Using local embeddings: ${modelName} (no API key required)`);
+        console.error(`🧠 Using local embeddings: ${modelName} (no API key required)`);
     }
 
     async connect(): Promise<void> {
@@ -100,7 +100,7 @@ export class PostgreSQLXenovaConnector extends DatabaseConnector {
                     
                     let embeddings: number[][] = [];
                     if (textsToEmbed.length > 0) {
-                        console.log(`🧠 Generating ${textsToEmbed.length} embeddings for batch ${Math.floor(i / batchSize) + 1}...`);
+                        console.error(`🧠 Generating ${textsToEmbed.length} embeddings for batch ${Math.floor(i / batchSize) + 1}...`);
                         embeddings = await (this.embeddingService as XenovaEmbeddingService).generateEmbeddings(textsToEmbed);
                     }
                     
@@ -292,7 +292,7 @@ export class PostgreSQLXenovaConnector extends DatabaseConnector {
 
             parser.on('end', async () => {
                 try {
-                    console.log(`📄 Parsed ${documents.length} documents from CSV`);
+                    console.error(`📄 Parsed ${documents.length} documents from CSV`);
                     const result = await this.addDocuments(documents);
                     
                     // Combine CSV parsing errors with import errors
