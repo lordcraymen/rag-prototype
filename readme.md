@@ -12,7 +12,16 @@ A powerful Retrieval-Augmented Generation (RAG) system built with FastMCP, Postg
 - **🔧 Modular Architecture**: Clean TypeScript codebase with inline compilation
 - **⚡ No Build Step**: Direct TypeScript execution with tsx for development
 
-## 🚀 Quick Start
+## � Development Setup
+
+The project is fully TypeScript-based with no build step required:
+
+- **tsx**: Direct TypeScript execution
+- **Vitest**: Modern testing framework with TypeScript support
+- **Path aliases**: Configured via `tsconfig.json` for clean imports (`@/` points to `src/`)
+- **ESM modules**: Full ES module support with `.js` extensions for TypeScript imports
+
+## �🚀 Quick Start
 
 ### 1. Start Database
 
@@ -34,9 +43,6 @@ npm run mcp:dev
 
 # For CSV import
 npm run csv:import path/to/your/file.csv
-
-# For legacy JavaScript version
-npm run start:legacy
 ```
 
 ## 📋 Available Commands
@@ -44,17 +50,23 @@ npm run start:legacy
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start with stdio transport (VS Code) |
+| `npm run dev` | Start with auto-reload (development) |
 | `npm run mcp:dev` | Start HTTP streaming server with verbose logging |
 | `npm run mcp:http` | Start HTTP streaming server on port 3000 |
-| `npm run mcp:sse` | Start SSE server on port 3001 |
+| `npm run mcp:stdio` | Start with stdio transport explicitly |
 | `npm run docker:up` | Start PostgreSQL database |
 | `npm run docker:down` | Stop database |
+| `npm run docker:reset` | Reset database (down + up) |
+| `npm run docker:logs` | View database logs |
+| `npm run test` | Run tests with Vitest |
+| `npm run test:ui` | Run tests with Vitest UI |
+| `npm run test:coverage` | Run tests with coverage |
+| `npm run csv:import` | Import documents from CSV file |
 
 ## 🛠️ Transport Types
 
 - **stdio**: Standard input/output (for VS Code and other MCP clients)
 - **httpStream**: HTTP streaming (for web-based integrations)
-- **sse**: Server-Sent Events (for streaming applications)
 - **http**: Legacy HTTP (deprecated, maps to httpStream)
 
 ## 📚 Available Tools
@@ -69,68 +81,123 @@ npm run start:legacy
 
 ## ⚙️ Configuration
 
-All default server and RAG settings live in a single entry point:
-[`mcp/lib/config.js`](mcp/lib/config.js). The `ConfigManager` merges these
-defaults with environment variables and CLI arguments so overrides are applied
-consistently across the CLI and server.
+Configuration is managed through environment variables and optional config files. The application uses a TypeScript-based configuration system located in `src/utils/config.ts`.
 
 Set environment variables to customize the setup:
 
 ```bash
-RAG_DB_HOST=localhost          # Database host
-RAG_DB_PORT=5432              # Database port
-RAG_DB_NAME=rag               # Database name
-RAG_DB_USER=raguser           # Database user
-RAG_DB_PASSWORD=ragpassword   # Database password
-RAG_MODEL_NAME=Xenova/all-MiniLM-L6-v2  # Embedding model
+DB_HOST=localhost                    # Database host
+DB_PORT=5432                        # Database port
+DB_NAME=rag                         # Database name
+DB_USER=postgres                    # Database user (default: postgres)
+DB_PASSWORD=postgres                # Database password (default: postgres)
+DB_SSL=false                        # Enable SSL (default: false)
+EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2  # Embedding model
+SERVER_NAME=rag-knowledge-base      # Server name
+SERVER_VERSION=1.0.0                # Server version
+SERVER_PORT=3000                    # Server port (for HTTP transport)
+```
+
+Alternative: Create a `config.json` file in the project root:
+
+```json
+{
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "rag",
+    "user": "postgres", 
+    "password": "postgres",
+    "ssl": false
+  },
+  "embedding": {
+    "model": "Xenova/all-MiniLM-L6-v2"
+  }
+}
 ```
 
 ## 🏗️ Architecture
 
 ```
-mcp/
-├── cli.js                    # Command-line interface
-├── server.js                # Main server entry point
-└── lib/
-    ├── config.js           # Configuration management
-    ├── server-utils.js     # Server utilities and logging
-    ├── mcp-server-factory.js  # Server factory with transport abstraction
-    ├── rag-service.js      # RAG business logic
-    ├── rag-tool-registry.js   # MCP tool registration
-    └── html-content-extractor.js  # HTML processing utilities
+src/
+├── index.ts                  # Main entry point
+├── mcp/                      # MCP Server implementations
+│   ├── server.ts             # Main TypeScript MCP server
+│   ├── server-factory.ts     # Server factory with transport abstraction
+│   ├── rag-tools.ts          # RAG MCP tools registration
+│   ├── tool-builder.ts       # Tool building utilities
+│   └── implementations/      # Server transport implementations
+│       ├── FastMCPServer.ts  # FastMCP implementation
+│       └── StdioMCPServer.ts # Stdio transport implementation
+├── connectors/               # Database connectors
+│   └── postgresql/           # PostgreSQL specific connectors
+│       ├── PostgreSQLConnection.ts      # Basic connection
+│       ├── PostgreSQLConnector.ts       # Standard connector
+│       └── PostgreSQLXenovaConnector.ts # Xenova embeddings connector
+├── services/                 # Service layer
+│   ├── OpenAIEmbeddingService.ts        # OpenAI embeddings (optional)
+│   ├── XenovaEmbeddingService.ts        # Local Xenova embeddings
+│   └── PostgreSQLSearchService.ts       # Search service
+├── scripts/                  # Utility scripts
+│   ├── csv-importer.ts       # CSV import functionality
+│   ├── rag-status-check.ts   # System status checker
+│   └── fastmcp-research.ts   # FastMCP research tools
+├── types/                    # TypeScript type definitions
+│   ├── database.ts           # Database types
+│   ├── index.ts              # Main type exports
+│   └── mcp-interfaces.ts     # MCP interface definitions
+└── utils/                    # Utility functions
+    └── config.ts             # Configuration management
 
-tests/
-├── test-config.js          # Configuration tests
-├── test-connection.js      # Database connection tests
-├── test-database.js        # Database functionality tests
-├── test-system.js          # End-to-end system tests
-├── run-all-tests.js        # Test runner
-└── README.md              # Test documentation
+tests/                        # Vitest test suite
+├── config.test.ts            # Configuration tests
+├── connection.test.ts        # Database connection tests
+├── database.test.ts          # Database functionality tests
+├── embedding-service.test.ts # Embedding service tests
+├── search-service.test.ts    # Search service tests
+├── mcp-server.test.ts        # MCP server tests
+├── e2e.test.ts              # End-to-end tests
+├── system.test.ts           # System integration tests
+└── README.md                # Test documentation
 ```
 
 ## 🧪 Testing
 
-The project includes a comprehensive test suite in the `tests/` directory:
+The project uses **Vitest** as the testing framework with comprehensive TypeScript test suite:
 
 ```bash
 # Run all tests
 npm test
-# or
-npm run test:all
+# or 
+npm run test:run
 
-# Run individual tests
-npm run test:config      # Test configuration loading
-npm run test:connection  # Test PostgreSQL connection  
-npm run test:db         # Test database functionality
-npm run test:system     # Test complete RAG system
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run tests in watch mode
+npm run test:watch
 ```
 
 ### Test Structure
-- **`tests/test-config.js`** - Configuration validation
-- **`tests/test-connection.js`** - Database connectivity
-- **`tests/test-database.js`** - SQL functionality  
-- **`tests/test-system.js`** - End-to-end RAG system
-- **`tests/run-all-tests.js`** - Test runner with summary
+- **`tests/config.test.ts`** - Configuration validation and loading
+- **`tests/connection.test.ts`** - Database connectivity tests
+- **`tests/database.test.ts`** - Database functionality and SQL operations
+- **`tests/embedding-service.test.ts`** - Embedding service functionality
+- **`tests/search-service.test.ts`** - Search and retrieval operations
+- **`tests/mcp-server.test.ts`** - MCP server functionality
+- **`tests/e2e.test.ts`** - End-to-end integration tests
+- **`tests/system.test.ts`** - Complete system integration tests
+
+### Development Testing Tools
+```bash
+# Check embeddings functionality
+node tests/check-embeddings.mjs
+
+# Query documents directly (requires running database)
+node query-docs.mjs
 
 ### Manual API Testing
 ```bash
@@ -159,11 +226,15 @@ This RAG server integrates seamlessly with VS Code through the Model Context Pro
    {
      "github.copilot.chat.mcp.servers": {
        "rag-prototype": {
-         "command": "node",
-         "args": ["path/to/your/rag-protoype/mcp/cli.js"],
+         "command": "npx",
+         "args": ["tsx", "src/mcp/server.ts"],
+         "cwd": "path/to/your/rag-protoype",
          "env": {
-           "RAG_DB_HOST": "localhost",
-           "RAG_DB_PORT": "5432"
+           "DB_HOST": "localhost",
+           "DB_PORT": "5432",
+           "DB_NAME": "rag",
+           "DB_USER": "postgres",
+           "DB_PASSWORD": "postgres"
          }
        }
      }
@@ -193,10 +264,13 @@ The server works with any MCP-compatible client using stdio transport:
 {
   "mcpServers": {
     "rag-service": {
-      "command": "node",
-      "args": ["path/to/mcp/cli.js"],
+      "command": "npx",
+      "args": ["tsx", "src/mcp/server.ts"],
+      "cwd": "path/to/your/rag-protoype",
       "env": {
-        "RAG_DB_HOST": "localhost"
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_NAME": "rag"
       }
     }
   }

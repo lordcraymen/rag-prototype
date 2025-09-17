@@ -8,12 +8,12 @@
     "url": "git+https://github.com/lordcraymen/rag-prototype.git"
   },
   "scripts": {
-    "start": "npx tsx src/mcp/server-new.ts",
-    "dev": "npx tsx --watch src/mcp/server-new.ts",
-    "mcp": "npx tsx src/mcp/server-new.ts",
-    "mcp:stdio": "npx tsx src/mcp/server-new.ts --transport stdio",
-    "mcp:http": "npx tsx src/mcp/server-new.ts --transport httpStream --port 3000",
-    "mcp:dev": "npx tsx src/mcp/server-new.ts --transport httpStream --port 3000 --verbose",
+    "start": "npx tsx src/mcp/server.ts",
+    "dev": "npx tsx --watch src/mcp/server.ts",
+    "mcp": "npx tsx src/mcp/server.ts",
+    "mcp:stdio": "npx tsx src/mcp/server.ts --transport stdio",
+    "mcp:http": "npx tsx src/mcp/server.ts --transport httpStream --port 3000",
+    "mcp:dev": "npx tsx src/mcp/server.ts --transport httpStream --port 3000 --verbose",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
