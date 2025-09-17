@@ -1,5 +1,5 @@
 // Check embedding dimensions in database
-import { PostgreSQLXenovaConnector } from './src/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { PostgreSQLXenovaConnector } from '../src/connectors/postgresql/PostgreSQLXenovaConnector.js';
 
 const config = { 
     host: 'localhost', 
