@@ -78,7 +78,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
             document.title || null,
             document.content,
             JSON.stringify(document.metadata || {}),
-            JSON.stringify(embedding)
+            `[${embedding.join(',')}]`
         ]);
 
         return rows[0].id;
@@ -145,7 +145,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
                                 document.title || null,
                                 document.content,
                                 JSON.stringify(document.metadata || {}),
-                                JSON.stringify(embedding)
+                                `[${embedding.join(',')}]`
                             ]);
 
                             imported++;
@@ -190,10 +190,10 @@ export class PostgreSQLConnector extends DatabaseConnector {
             // Regenerate embedding if content changed
             const embeddingResult = await this.generateEmbedding(document.content);
             updates.push(`embedding = $${paramIndex++}`);
-            values.push(JSON.stringify(embeddingResult.vector));
+            values.push(`[${embeddingResult.vector.join(',')}]`);
         } else if (document.embedding) {
             updates.push(`embedding = $${paramIndex++}`);
-            values.push(JSON.stringify(document.embedding));
+            values.push(`[${document.embedding.join(',')}]`);
         }
 
         if (document.metadata !== undefined) {

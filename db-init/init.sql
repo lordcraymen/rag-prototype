@@ -80,14 +80,14 @@ CREATE OR REPLACE FUNCTION bm25_score(
     total_docs INTEGER,
     k1 REAL DEFAULT 1.2,
     b REAL DEFAULT 0.75
-) RETURNS REAL AS $$
+) RETURNS DOUBLE PRECISION AS $$
 DECLARE
     term TEXT;
     tf INTEGER;
     df INTEGER;
-    idf REAL;
-    score REAL := 0;
-    normalized_tf REAL;
+    idf DOUBLE PRECISION;
+    score DOUBLE PRECISION := 0;
+    normalized_tf DOUBLE PRECISION;
 BEGIN
     -- For each query term
     FOREACH term IN ARRAY query_terms LOOP
@@ -196,7 +196,7 @@ CREATE OR REPLACE FUNCTION search_documents_by_similarity(
     content TEXT,
     metadata JSONB,
     created_at TIMESTAMP,
-    similarity REAL
+    similarity DOUBLE PRECISION
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -228,9 +228,9 @@ CREATE OR REPLACE FUNCTION hybrid_search_documents(
     content TEXT,
     metadata JSONB,
     created_at TIMESTAMP,
-    vector_similarity REAL,
-    bm25_score REAL,
-    hybrid_score REAL
+    vector_similarity DOUBLE PRECISION,
+    bm25_score DOUBLE PRECISION,
+    hybrid_score DOUBLE PRECISION
 ) AS $$
 DECLARE
     query_terms TEXT[];

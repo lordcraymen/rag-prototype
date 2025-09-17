@@ -40,7 +40,7 @@ describe('PostgreSQLSearchService Unit Tests', () => {
 
       expect(mockConnection.query).toHaveBeenCalledWith(
         expect.stringContaining('embedding <=> $1::vector'),
-        [JSON.stringify(embedding), 0.7, 5]
+        [`[${embedding.join(',')}]`, 0.7, 5]
       );
 
       expect(results).toHaveLength(2);
@@ -63,7 +63,7 @@ describe('PostgreSQLSearchService Unit Tests', () => {
 
       expect(mockConnection.query).toHaveBeenCalledWith(
         expect.any(String),
-        [JSON.stringify(embedding), 0.05, 5] // default threshold and limit
+        [`[${embedding.join(',')}]`, 0.05, 5] // default threshold and limit
       );
     });
   });
@@ -128,7 +128,7 @@ describe('PostgreSQLSearchService Unit Tests', () => {
 
       expect(mockConnection.query).toHaveBeenCalledWith(
         expect.stringContaining('hybrid_search_documents'),
-        ['test query', JSON.stringify(embedding), 0.05, 0.4, 0.6, 2]
+        ['test query', `[${embedding.join(',')}]`, 0.05, 0.4, 0.6, 2]
       );
 
       expect(results).toHaveLength(1);

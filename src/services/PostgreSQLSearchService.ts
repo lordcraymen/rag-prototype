@@ -27,7 +27,7 @@ export class PostgreSQLSearchService implements ISearchService {
         `;
 
         const rows = await this.connection.query(query, [
-            JSON.stringify(embedding),
+            `[${embedding.join(',')}]`,
             threshold,
             limit
         ]);
@@ -89,6 +89,7 @@ export class PostgreSQLSearchService implements ISearchService {
                 title,
                 content,
                 metadata,
+                created_at,
                 vector_similarity,
                 bm25_score,
                 hybrid_score
@@ -104,7 +105,7 @@ export class PostgreSQLSearchService implements ISearchService {
 
         const rows = await this.connection.query(sql, [
             query,
-            JSON.stringify(queryEmbedding),
+            `[${queryEmbedding.join(',')}]`,
             threshold,
             bm25Weight,
             vectorWeight,
