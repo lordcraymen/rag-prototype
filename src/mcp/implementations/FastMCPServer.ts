@@ -1,7 +1,6 @@
 // FastMCP Server Implementation
 import { FastMCP } from 'fastmcp';
 import { MCPServer, type MCPServerConfig, type MCPTool } from '@/types/mcp-interfaces.js';
-import { zodToJsonSchema } from '@/mcp/tool-builder.js';
 
 /**
  * FastMCP Server Implementation
