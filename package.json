@@ -8,8 +8,6 @@
     "url": "git+https://github.com/lordcraymen/rag-prototype.git"
   },
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
     "start": "npx tsx src/mcp/server.ts",
     "dev": "npx tsx --watch src/mcp/server.ts",
     "mcp": "npx tsx src/mcp/server.ts",
