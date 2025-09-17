@@ -1,7 +1,7 @@
 // MCP Server Factory - Austauschbare Implementierungen
 import { MCPServer, type MCPServerConfig, type MCPServerFactory, type MCPTransport } from '@/types/mcp-interfaces.js';
-import { StdioMCPServer } from './implementations/StdioMCPServer.js';
-import { FastMCPServer } from './implementations/FastMCPServer.js';
+import { StdioMCPServer } from './implementations/StdioMCPServer';
+import { FastMCPServer } from './implementations/FastMCPServer';
 
 /**
  * Standard MCP Server Factory

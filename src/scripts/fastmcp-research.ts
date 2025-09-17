@@ -20,7 +20,7 @@ try {
         server.addTool({
             name: 'test_tool',
             description: 'Test tool',
-            func: () => 'test result'  // func statt handler?
+            execute: async () => 'test result'  // use correct property name 'execute'
         });
         console.error('✅ addTool mit func funktioniert');
     } catch (error) {
@@ -31,7 +31,7 @@ try {
             server.addTool({
                 name: 'test_tool2',
                 description: 'Test tool 2',
-                execute: () => 'test result'
+                execute: async () => 'test result'
             });
             console.error('✅ addTool mit execute funktioniert');
         } catch (error2) {
@@ -54,11 +54,15 @@ try {
     
 } catch (error) {
     console.error('❌ Constructor error:', error);
-    console.error('📋 Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack?.split('\n')[0]
-    });
+    if (error instanceof Error) {
+        console.error('📋 Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.split('\n')[0]
+        });
+    } else {
+        console.error('📋 Error details:', error);
+    }
 }
 
 console.error('\n✅ FastMCP API research completed');
