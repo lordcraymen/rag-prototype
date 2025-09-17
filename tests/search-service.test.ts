@@ -103,7 +103,48 @@ describe('PostgreSQLSearchService Unit Tests', () => {
   });
 
   describe('Hybrid Search', () => {
-    it('should fall back to BM25 search with warning', async () => {
+    it('should perform hybrid search when embedding is provided', async () => {
+      const embedding = [0.1, 0.2, 0.3, 0.4];
+      const mockResults = [
+        {
+          id: 'doc4',
+          title: 'Hybrid Document',
+          content: 'Hybrid content',
+          metadata: {},
+          vector_similarity: 0.82,
+          bm25_score: 1.6,
+          hybrid_score: 0.91
+        }
+      ];
+
+      mockConnection.query.mockResolvedValue(mockResults);
+
+      const results = await searchService.hybridSearch('test query', {
+        limit: 2,
+        bm25Weight: 0.4,
+        vectorWeight: 0.6,
+        queryEmbedding: embedding
+      });
+
+      expect(mockConnection.query).toHaveBeenCalledWith(
+        expect.stringContaining('hybrid_search_documents'),
+        ['test query', JSON.stringify(embedding), 0.05, 0.4, 0.6, 2]
+      );
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: 'doc4',
+        title: 'Hybrid Document',
+        content: 'Hybrid content',
+        metadata: {},
+        score: 0.91,
+        bm25_score: 1.6,
+        vector_score: 0.82,
+        rank: 1
+      });
+    });
+
+    it('should fall back to BM25 search with warning when embedding missing', async () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const mockResults = [
         {
@@ -120,12 +161,23 @@ describe('PostgreSQLSearchService Unit Tests', () => {
       const results = await searchService.hybridSearch('test query', { limit: 2 });
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('hybridSearch falling back to BM25 search')
+        expect.stringContaining('hybridSearch called without queryEmbedding')
       );
       expect(mockConnection.query).toHaveBeenCalledWith(
         expect.stringContaining('bm25_score'),
         ['test query', 2]
       );
+      expect(results).toEqual([
+        {
+          id: 'doc4',
+          title: 'Hybrid Document',
+          content: 'Hybrid content',
+          metadata: {},
+          score: 1.8,
+          bm25_score: 1.8,
+          rank: 1
+        }
+      ]);
 
       consoleSpy.mockRestore();
     });

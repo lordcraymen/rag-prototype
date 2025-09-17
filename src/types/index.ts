@@ -28,6 +28,11 @@ export interface SearchOptions {
     useHybrid?: boolean;
     bm25Weight?: number;
     vectorWeight?: number;
+    /**
+     * Optional precomputed embedding for the query. When provided the search
+     * services can reuse it instead of generating a fresh embedding.
+     */
+    queryEmbedding?: number[];
 }
 
 export interface EmbeddingVector {

@@ -103,7 +103,13 @@ describe('Database Connector Business Logic', () => {
       await connector.search(searchOptions);
 
       expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith('test query');
-      expect(mockSearchService.vectorSearch).toHaveBeenCalledWith([0.1, 0.2, 0.3, 0.4], 3, undefined);
+      expect(mockSearchService.hybridSearch).toHaveBeenCalledWith(
+        'test query',
+        expect.objectContaining({
+          limit: 3,
+          queryEmbedding: [0.1, 0.2, 0.3, 0.4]
+        })
+      );
     });
   });
 
