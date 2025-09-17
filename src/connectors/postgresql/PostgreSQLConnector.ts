@@ -2,30 +2,40 @@
 
 import { DatabaseConnector } from '../DatabaseConnector.js';
 import { PostgreSQLConnection } from './PostgreSQLConnection.js';
-import { OpenAIEmbeddingService } from '../../services/OpenAIEmbeddingService.js';
 import { PostgreSQLSearchService } from '../../services/PostgreSQLSearchService.js';
-import { Document, SearchResult, ConnectionStatus, ImportResult, BatchImportOptions, DatabaseConfig } from '@/types/index.js';
+import { Document, ConnectionStatus, ImportResult, BatchImportOptions, DatabaseConfig } from '@/types/index.js';
+import { IEmbeddingService } from '@/types/database.js';
+import { EmbeddingBatchHelper } from './helpers/EmbeddingBatchHelper.js';
 import { createReadStream } from 'fs';
 import { parse } from 'csv-parse';
 import { PoolClient } from 'pg';
 
+export interface PostgreSQLConnectorOptions {
+    embeddingService: IEmbeddingService;
+    batchHelper?: EmbeddingBatchHelper;
+}
+
 export class PostgreSQLConnector extends DatabaseConnector {
     private postgresConnection: PostgreSQLConnection;
     private config: DatabaseConfig;
+    private batchHelper?: EmbeddingBatchHelper;
 
-    constructor(config: DatabaseConfig, openaiApiKey: string) {
+    constructor(config: DatabaseConfig, options: PostgreSQLConnectorOptions) {
         const connection = new PostgreSQLConnection(config);
-        const embeddingService = new OpenAIEmbeddingService(openaiApiKey);
         const searchService = new PostgreSQLSearchService(connection);
-        
-        super(connection, embeddingService, searchService);
-        
+
+        super(connection, options.embeddingService, searchService);
+
         this.postgresConnection = connection;
         this.config = config;
+        this.batchHelper = options.batchHelper;
     }
 
     async connect(): Promise<void> {
         await this.postgresConnection.connect();
+        if (this.batchHelper?.onConnect) {
+            await this.batchHelper.onConnect();
+        }
     }
 
     async disconnect(): Promise<void> {
@@ -35,12 +45,16 @@ export class PostgreSQLConnector extends DatabaseConnector {
     async getStatus(): Promise<ConnectionStatus> {
         const baseStatus = await super.getStatus();
         const stats = this.postgresConnection.getPoolStats();
-        
+        const embeddingInfo = typeof (this.embeddingService as any)?.getModelInfo === 'function'
+            ? (this.embeddingService as any).getModelInfo()
+            : undefined;
+
         return {
             ...baseStatus,
             database: this.config.database,
             host: this.config.host,
-            ...stats
+            ...stats,
+            ...(embeddingInfo ? { embedding: embeddingInfo } : {})
         };
     }
 
@@ -79,23 +93,49 @@ export class PostgreSQLConnector extends DatabaseConnector {
         let failed = 0;
         const errors: string[] = [];
 
-        // Process in batches using transaction
-        const batchSize = 100;
-        
+        const defaultBatchSize = 100;
+        const batchSize = this.batchHelper?.getBatchSize
+            ? this.batchHelper.getBatchSize(defaultBatchSize)
+            : defaultBatchSize;
+
         for (let i = 0; i < documents.length; i += batchSize) {
             const batch = documents.slice(i, i + batchSize);
-            
+            const batchNumber = Math.floor(i / batchSize) + 1;
+
             try {
                 await this.postgresConnection.transaction(async (client: PoolClient) => {
-                    for (const document of batch) {
+                    const documentsNeedingEmbeddings = batch.filter(doc => !doc.embedding);
+
+                    let precomputedEmbeddings: number[][] = [];
+                    if (documentsNeedingEmbeddings.length > 0 && this.batchHelper?.generateEmbeddings) {
+                        precomputedEmbeddings = await this.batchHelper.generateEmbeddings(documentsNeedingEmbeddings, { batchNumber });
+
+                        if (precomputedEmbeddings.length !== documentsNeedingEmbeddings.length) {
+                            throw new Error('Batch embedding helper returned incorrect number of embeddings');
+                        }
+                    }
+
+                    let precomputedIndex = 0;
+
+                    for (let docIndex = 0; docIndex < batch.length; docIndex++) {
+                        const document = batch[docIndex];
+                        const documentPosition = i + docIndex + 1;
+
                         try {
                             this.validateDocument(document);
-                            
-                            // Generate embedding if not provided
+
                             let embedding = document.embedding;
                             if (!embedding) {
-                                const embeddingResult = await this.generateEmbedding(document.content);
-                                embedding = embeddingResult.vector;
+                                if (precomputedEmbeddings.length > 0) {
+                                    embedding = precomputedEmbeddings[precomputedIndex++];
+                                } else {
+                                    const embeddingResult = await this.generateEmbedding(document.content);
+                                    embedding = embeddingResult.vector;
+                                }
+                            }
+
+                            if (!embedding) {
+                                throw new Error('Failed to generate embedding for document');
                             }
 
                             await client.query(`
@@ -107,18 +147,18 @@ export class PostgreSQLConnector extends DatabaseConnector {
                                 JSON.stringify(document.metadata || {}),
                                 JSON.stringify(embedding)
                             ]);
-                            
+
                             imported++;
                         } catch (error) {
                             failed++;
-                            errors.push(`Document ${i + imported + failed}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                            errors.push(`Document ${documentPosition}: ${error instanceof Error ? error.message : 'Unknown error'}`);
                         }
                     }
                 });
             } catch (error) {
                 // If whole batch fails, count all as failed
                 failed += batch.length;
-                errors.push(`Batch ${Math.floor(i / batchSize)}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                errors.push(`Batch ${batchNumber}: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
         }
 
@@ -146,7 +186,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
             }
             updates.push(`content = $${paramIndex++}`);
             values.push(document.content);
-            
+
             // Regenerate embedding if content changed
             const embeddingResult = await this.generateEmbedding(document.content);
             updates.push(`embedding = $${paramIndex++}`);
@@ -169,7 +209,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
         values.push(id);
 
         const query = `
-            UPDATE documents 
+            UPDATE documents
             SET ${updates.join(', ')}
             WHERE id = $${paramIndex}
         `;
@@ -215,13 +255,13 @@ export class PostgreSQLConnector extends DatabaseConnector {
     async initializeDatabase(): Promise<void> {
         // Create extension and tables if they don't exist
         await this.postgresConnection.query('CREATE EXTENSION IF NOT EXISTS vector');
-        
+
         // This assumes the database schema is already created via init.sql
         // In a production environment, you might want to check and create tables here
         const tableExists = await this.postgresConnection.query(`
             SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
                 AND table_name = 'documents'
             )
         `);
@@ -276,10 +316,10 @@ export class PostgreSQLConnector extends DatabaseConnector {
             parser.on('end', async () => {
                 try {
                     const result = await this.addDocuments(documents);
-                    
+
                     // Combine CSV parsing errors with import errors
                     const allErrors = [...errors, ...(result.errors || [])];
-                    
+
                     resolve({
                         success: result.success && errors.length === 0,
                         imported: result.imported,
@@ -306,12 +346,12 @@ export class PostgreSQLConnector extends DatabaseConnector {
         // Flexible column mapping
         let content = row.content || row.text || row.description || row.body;
         let title = row.title || row.name || row.subject;
-        
+
         // Handle German CSV format (semicolon-separated)
         if (!content) {
             // Try to find content in any column that looks like content
-            const contentKeys = Object.keys(row).find(key => 
-                key.toLowerCase().includes('content') || 
+            const contentKeys = Object.keys(row).find(key =>
+                key.toLowerCase().includes('content') ||
                 key.toLowerCase().includes('text') ||
                 key.toLowerCase().includes('beschreibung') ||
                 key.toLowerCase().includes('inhalt')
@@ -322,8 +362,8 @@ export class PostgreSQLConnector extends DatabaseConnector {
         }
 
         if (!title) {
-            const titleKeys = Object.keys(row).find(key => 
-                key.toLowerCase().includes('title') || 
+            const titleKeys = Object.keys(row).find(key =>
+                key.toLowerCase().includes('title') ||
                 key.toLowerCase().includes('name') ||
                 key.toLowerCase().includes('titel') ||
                 key.toLowerCase().includes('bezeichnung')

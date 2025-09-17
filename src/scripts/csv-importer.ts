@@ -1,7 +1,8 @@
 #!/usr/bin/env tsx
 // TypeScript CSV Importer - Lokale Xenova Embeddings (kein API Key!)
 
-import { PostgreSQLXenovaConnector } from '@/connectors/postgresql/PostgreSQLXenovaConnector.js';
+import { PostgreSQLConnector } from '@/connectors/postgresql/PostgreSQLConnector.js';
+import { createXenovaConnector } from '@/connectors/postgresql/factories.js';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -41,9 +42,9 @@ interface CSVImportOptions {
 }
 
 class TypeScriptCSVImporter {
-    private connector: PostgreSQLXenovaConnector;
+    private connector: PostgreSQLConnector;
 
-    constructor(connector: PostgreSQLXenovaConnector) {
+    constructor(connector: PostgreSQLConnector) {
         this.connector = connector;
     }
 
@@ -164,7 +165,7 @@ Examples:
         const config = loadConfig();
         
         // No API key needed for local Xenova embeddings! 🎉
-        const connector = new PostgreSQLXenovaConnector(config.database, config.embedding.model);
+        const connector = createXenovaConnector(config.database, { model: config.embedding?.model });
         await connector.connect();
 
         const importer = new TypeScriptCSVImporter(connector);

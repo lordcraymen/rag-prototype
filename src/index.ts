@@ -9,8 +9,8 @@ export { DatabaseConnector } from './connectors/DatabaseConnector.js';
 
 // PostgreSQL implementation
 export { PostgreSQLConnection } from './connectors/postgresql/PostgreSQLConnection.js';
-export { PostgreSQLConnector } from './connectors/postgresql/PostgreSQLConnector.js';
-export { PostgreSQLXenovaConnector } from './connectors/postgresql/PostgreSQLXenovaConnector.js';
+export { PostgreSQLConnector, PostgreSQLConnectorOptions } from './connectors/postgresql/PostgreSQLConnector.js';
+export { createOpenAIConnector, createXenovaConnector } from './connectors/postgresql/factories.js';
 
 // Services
 export { OpenAIEmbeddingService } from './services/OpenAIEmbeddingService.js';
