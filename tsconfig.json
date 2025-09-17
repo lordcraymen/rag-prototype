@@ -24,13 +24,21 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node",
+    "require": ["tsconfig-paths/register"]
+  },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "scripts/**/*",
+    "tests/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "legacy/**/*"
+    "legacy/**/*",
+    "**/*.js"
   ]
 }

@@ -4,12 +4,13 @@ A powerful Retrieval-Augmented Generation (RAG) system built with FastMCP, Postg
 
 ## ✨ Features
 
-- **🧠 Local Embeddings**: Uses Xenova/all-MiniLM-L6-v2 (no API keys required)
+- **🧠 Local Embeddings**: Uses Xenova/all-MiniLM-L6-v2 (no API keys required) with TypeScript
 - **🗄️ Vector Database**: PostgreSQL + pgvector for efficient similarity search
 - **📡 Multiple Transports**: Support for stdio, HTTP streaming, and SSE
 - **🔍 Hybrid Search**: BM25 + vector similarity search
 - **🌐 Web Extraction**: Smart HTML content extraction with sitemap batch consumption support
-- **🔧 Modular Architecture**: Clean, extensible codebase
+- **🔧 Modular Architecture**: Clean TypeScript codebase with inline compilation
+- **⚡ No Build Step**: Direct TypeScript execution with tsx for development
 
 ## 🚀 Quick Start
 
@@ -22,14 +23,20 @@ npm run docker:up
 ### 2. Start MCP Server
 
 ```bash
-# For VS Code / stdio transport (recommended)
+# For VS Code / stdio transport (recommended) - TypeScript with local embeddings
 npm start
+
+# For development with auto-reload
+npm run dev
 
 # For HTTP streaming server with verbose logging
 npm run mcp:dev
 
-# For custom configurations
-node mcp/cli.js --transport httpStream --port 3000 --verbose
+# For CSV import
+npm run csv:import path/to/your/file.csv
+
+# For legacy JavaScript version
+npm run start:legacy
 ```
 
 ## 📋 Available Commands

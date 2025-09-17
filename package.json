@@ -10,24 +10,25 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "start": "npm run build && node dist/mcp/server.js",
-    "dev": "npm run build:watch",
-    "start:legacy": "node mcp/cli.js",
-    "mcp": "npm run build && node dist/mcp/server.js",
-    "mcp:stdio": "npm run build && node dist/mcp/server.js --transport stdio",
-    "mcp:http": "npm run build && node dist/mcp/server.js --transport httpStream --port 3000",
-    "mcp:sse": "npm run build && node dist/mcp/server.js --transport sse --port 3001",
-    "mcp:dev": "npm run build && node dist/mcp/server.js --transport httpStream --port 3000 --verbose",
+    "start": "npx tsx src/mcp/server.ts",
+    "dev": "npx tsx --watch src/mcp/server.ts",
+    "start:legacy": "node legacy/mcp/cli.js",
+    "mcp": "npx tsx src/mcp/server.ts",
+    "mcp:stdio": "npx tsx src/mcp/server.ts --transport stdio",
+    "mcp:http": "npx tsx src/mcp/server.ts --transport httpStream --port 3000",
+    "mcp:sse": "npx tsx src/mcp/server.ts --transport sse --port 3001",
+    "mcp:dev": "npx tsx src/mcp/server.ts --transport httpStream --port 3000 --verbose",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:reset": "docker-compose down -v && docker-compose up -d",
     "docker:logs": "docker logs rag-postgres",
-    "test": "npm run build && node dist/tests/run-all-tests.js",
-    "test:all": "npm run build && node dist/tests/run-all-tests.js",
-    "test:config": "npm run build && node dist/tests/test-config.js",
-    "test:connection": "npm run build && node dist/tests/test-connection.js",
-    "test:db": "npm run build && node dist/tests/test-database.js",
-    "test:system": "npm run build && node dist/tests/test-system.js"
+    "test": "npx tsx tests/run-all-tests.ts",
+    "test:all": "npx tsx tests/run-all-tests.ts",
+    "test:config": "npx tsx tests/test-config.ts",
+    "test:connection": "npx tsx tests/test-connection.ts",
+    "test:db": "npx tsx tests/test-database.ts",
+    "test:system": "npx tsx tests/test-system.ts",
+    "csv:import": "npx tsx scripts/csv-importer.ts"
   },
   "keywords": [
     "mcp",
@@ -43,6 +44,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@types/node-fetch": "^2.6.13",
     "@xenova/transformers": "^2.17.2",
     "cheerio": "^1.0.0-rc.12",
     "csv-parse": "^6.1.0",
@@ -54,6 +56,9 @@
   },
   "devDependencies": {
     "@types/node": "^24.5.1",
-    "@types/pg": "^8.15.5"
+    "@types/pg": "^8.15.5",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.20.5"
   }
 }

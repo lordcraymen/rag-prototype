@@ -49,6 +49,7 @@ export interface ConnectionStatus {
     database?: string;
     host?: string;
     error?: string;
+    embedding?: any; // Model info for embedding service
 }
 
 export interface ImportResult {

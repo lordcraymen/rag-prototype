@@ -1,31 +1,35 @@
-// PostgreSQL database connector implementation
+// PostgreSQL database connector with local Xenova embeddings - no API key required!
 
 import { DatabaseConnector } from '../DatabaseConnector.js';
 import { PostgreSQLConnection } from './PostgreSQLConnection.js';
-import { OpenAIEmbeddingService } from '../../services/OpenAIEmbeddingService.js';
+import { XenovaEmbeddingService } from '../../services/XenovaEmbeddingService.js';
 import { PostgreSQLSearchService } from '../../services/PostgreSQLSearchService.js';
 import { Document, SearchResult, ConnectionStatus, ImportResult, BatchImportOptions, DatabaseConfig } from '@/types/index.js';
 import { createReadStream } from 'fs';
 import { parse } from 'csv-parse';
 import { PoolClient } from 'pg';
 
-export class PostgreSQLConnector extends DatabaseConnector {
+export class PostgreSQLXenovaConnector extends DatabaseConnector {
     private postgresConnection: PostgreSQLConnection;
     private config: DatabaseConfig;
 
-    constructor(config: DatabaseConfig, openaiApiKey: string) {
+    constructor(config: DatabaseConfig, modelName: string = 'Xenova/all-MiniLM-L6-v2') {
         const connection = new PostgreSQLConnection(config);
-        const embeddingService = new OpenAIEmbeddingService(openaiApiKey);
+        const embeddingService = new XenovaEmbeddingService(modelName);
         const searchService = new PostgreSQLSearchService(connection);
         
         super(connection, embeddingService, searchService);
         
         this.postgresConnection = connection;
         this.config = config;
+        
+        console.log(`🧠 Using local embeddings: ${modelName} (no API key required)`);
     }
 
     async connect(): Promise<void> {
         await this.postgresConnection.connect();
+        // Initialize embedding model
+        await (this.embeddingService as XenovaEmbeddingService).initializePipeline();
     }
 
     async disconnect(): Promise<void> {
@@ -35,12 +39,14 @@ export class PostgreSQLConnector extends DatabaseConnector {
     async getStatus(): Promise<ConnectionStatus> {
         const baseStatus = await super.getStatus();
         const stats = this.postgresConnection.getPoolStats();
+        const embeddingService = this.embeddingService as XenovaEmbeddingService;
         
         return {
             ...baseStatus,
             database: this.config.database,
             host: this.config.host,
-            ...stats
+            ...stats,
+            embedding: embeddingService.getModelInfo()
         };
     }
 
@@ -80,22 +86,34 @@ export class PostgreSQLConnector extends DatabaseConnector {
         const errors: string[] = [];
 
         // Process in batches using transaction
-        const batchSize = 100;
+        const batchSize = 50; // Smaller batches for local embedding processing
         
         for (let i = 0; i < documents.length; i += batchSize) {
             const batch = documents.slice(i, i + batchSize);
             
             try {
                 await this.postgresConnection.transaction(async (client: PoolClient) => {
+                    // Pre-generate embeddings for the batch
+                    const textsToEmbed = batch
+                        .filter(doc => !doc.embedding)
+                        .map(doc => doc.content);
+                    
+                    let embeddings: number[][] = [];
+                    if (textsToEmbed.length > 0) {
+                        console.log(`🧠 Generating ${textsToEmbed.length} embeddings for batch ${Math.floor(i / batchSize) + 1}...`);
+                        embeddings = await (this.embeddingService as XenovaEmbeddingService).generateEmbeddings(textsToEmbed);
+                    }
+                    
+                    let embeddingIndex = 0;
+                    
                     for (const document of batch) {
                         try {
                             this.validateDocument(document);
                             
-                            // Generate embedding if not provided
+                            // Use existing embedding or get from batch
                             let embedding = document.embedding;
                             if (!embedding) {
-                                const embeddingResult = await this.generateEmbedding(document.content);
-                                embedding = embeddingResult.vector;
+                                embedding = embeddings[embeddingIndex++];
                             }
 
                             await client.query(`
@@ -216,8 +234,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
         // Create extension and tables if they don't exist
         await this.postgresConnection.query('CREATE EXTENSION IF NOT EXISTS vector');
         
-        // This assumes the database schema is already created via init.sql
-        // In a production environment, you might want to check and create tables here
+        // Check if table exists
         const tableExists = await this.postgresConnection.query(`
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
@@ -275,6 +292,7 @@ export class PostgreSQLConnector extends DatabaseConnector {
 
             parser.on('end', async () => {
                 try {
+                    console.log(`📄 Parsed ${documents.length} documents from CSV`);
                     const result = await this.addDocuments(documents);
                     
                     // Combine CSV parsing errors with import errors
