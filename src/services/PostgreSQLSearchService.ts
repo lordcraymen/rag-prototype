@@ -71,16 +71,56 @@ export class PostgreSQLSearchService implements ISearchService {
 
     async hybridSearch(query: string, options?: Partial<SearchOptions>): Promise<SearchResult[]> {
         const {
+            queryEmbedding,
             limit = 5,
             threshold = 0.05,
             bm25Weight = 0.3,
             vectorWeight = 0.7
         } = options || {};
 
-        // For now, fall back to BM25 search since we need embeddings from the service layer
-        // The proper fix would be to inject the embedding service or get embeddings from the caller
-        console.warn('⚠️ hybridSearch falling back to BM25 search - embedding generation needed at service layer');
-        return this.bm25Search(query, limit);
+        if (!queryEmbedding || queryEmbedding.length === 0) {
+            console.warn('⚠️ hybridSearch called without queryEmbedding; falling back to BM25 search');
+            return this.bm25Search(query, limit);
+        }
+
+        const sql = `
+            SELECT
+                id,
+                title,
+                content,
+                metadata,
+                vector_similarity,
+                bm25_score,
+                hybrid_score
+            FROM hybrid_search_documents(
+                $1::text,
+                $2::vector,
+                $3::real,
+                $4::real,
+                $5::real,
+                $6::integer
+            )
+        `;
+
+        const rows = await this.connection.query(sql, [
+            query,
+            JSON.stringify(queryEmbedding),
+            threshold,
+            bm25Weight,
+            vectorWeight,
+            limit
+        ]);
+
+        return rows.map((row: any, index: number) => ({
+            id: row.id,
+            title: row.title,
+            content: row.content,
+            metadata: row.metadata || {},
+            score: parseFloat(row.hybrid_score),
+            bm25_score: row.bm25_score !== undefined ? parseFloat(row.bm25_score) : undefined,
+            vector_score: row.vector_similarity !== undefined ? parseFloat(row.vector_similarity) : undefined,
+            rank: index + 1
+        }));
     }
 
     // Helper method for raw SQL queries
