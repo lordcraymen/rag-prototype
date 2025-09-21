@@ -1,6 +1,6 @@
 {
   "name": "rag-prototype",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A RAG prototype using PostgreSQL + pgvector with FastMCP",
   "main": "index.js",
   "repository": {
