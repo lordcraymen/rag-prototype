@@ -1,283 +1,90 @@
-# RAG Prototype with FastMCP
+# RAG Prototype
 
-A powerful Retrieval-Augmented Generation (RAG) system built with FastMCP, PostgreSQL + pgvector, and local embeddings. Provides a Model Context Protocol server for AI assistants and development environments.
+A document retrieval experiment using PostgreSQL, pgvector and local Xenova embeddings. The active server uses the published `@lordcraymen/rivetbench` package to expose one validated operation registry over REST and MCP.
 
-## ✨ Features
+## Ontology graph search
 
-- **🧠 Local Embeddings**: Uses Xenova/all-MiniLM-L6-v2 (no API keys required) with TypeScript
-- **🗄️ Vector Database**: PostgreSQL + pgvector for efficient similarity search
-- **📡 Multiple Transports**: Support for stdio, HTTP streaming, and SSE
-- **🔍 Hybrid Search**: BM25 + vector similarity search
-- **🌐 Web Extraction**: Smart HTML content extraction with sitemap batch consumption support
-- **🔧 Modular Architecture**: Clean TypeScript codebase with inline compilation
-- **⚡ No Build Step**: Direct TypeScript execution with tsx for development
+The prototype now stores versioned RDF graphs and derives lexical and semantic indexes from their definitions. It supports Turtle, TriG, N-Triples and inline-context JSON-LD, preserves source predicates, and exposes explainable ontology search plus explicit mapping decisions. See [the ontology guide](docs/ontology-search.md) for imports, graph constraints and API examples.
 
-## � Development Setup
-
-The project is fully TypeScript-based with no build step required:
-
-- **tsx**: Direct TypeScript execution
-- **Vitest**: Modern testing framework with TypeScript support
-- **Path aliases**: Configured via `tsconfig.json` for clean imports (`@/` points to `src/`)
-- **ESM modules**: Full ES module support with `.js` extensions for TypeScript imports
-
-## �🚀 Quick Start
-
-### 1. Start Database
+## Run locally
 
 ```bash
+npm install
 npm run docker:up
+npm run dev:rest
 ```
 
-### 2. Start MCP Server
+The HTTP server binds to `127.0.0.1:3000` by default:
+
+- REST calls: `POST /rpc/<operation>`
+- MCP Streamable HTTP: `/mcp`
+- Operation discovery: `/tools`
+- OpenAPI: `/openapi.json`
+- Swagger UI: `/docs`
 
 ```bash
-# For VS Code / stdio transport (recommended) - TypeScript with local embeddings
-npm start
-
-# For development with auto-reload
-npm run dev
-
-# For HTTP streaming server with verbose logging
-npm run mcp:dev
-
-# For CSV import
-npm run csv:import path/to/your/file.csv
+curl http://127.0.0.1:3000/rpc/query_documents \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"a human individual","limit":5,"useHybrid":false,"threshold":0.05}'
 ```
 
-## 📋 Available Commands
+`npm start` and `npm run mcp:stdio` start MCP over stdio. `npm run mcp:http` starts the combined HTTP server. Existing `--transport httpStream`, `--port` and `--verbose` flags remain accepted; use `LOG_LEVEL` to set HTTP logging verbosity. Diagnostics go to stderr.
 
-| Command | Description |
-|---------|-------------|
-| `npm start` | Start with stdio transport (VS Code) |
-| `npm run dev` | Start with auto-reload (development) |
-| `npm run mcp:dev` | Start HTTP streaming server with verbose logging |
-| `npm run mcp:http` | Start HTTP streaming server on port 3000 |
-| `npm run mcp:stdio` | Start with stdio transport explicitly |
-| `npm run docker:up` | Start PostgreSQL database |
-| `npm run docker:down` | Stop database |
-| `npm run docker:reset` | Reset database (down + up) |
-| `npm run docker:logs` | View database logs |
-| `npm run test` | Run tests with Vitest |
-| `npm run test:ui` | Run tests with Vitest UI |
-| `npm run test:coverage` | Run tests with coverage |
-| `npm run csv:import` | Import documents from CSV file |
+## Operations
 
-## 🛠️ Transport Types
+| Name | Purpose |
+| --- | --- |
+| `add_document` | Embed and store a document |
+| `query_documents` | Retrieve documents with vector or hybrid search |
+| `import_from_csv` | Import a local CSV through the connector |
+| `get_rag_status` | Report connector status and document count |
+| `remove_document` | Delete a document by ID |
 
-- **stdio**: Standard input/output (for VS Code and other MCP clients)
-- **httpStream**: HTTP streaming (for web-based integrations)
-- **http**: Legacy HTTP (deprecated, maps to httpStream)
+Each operation has an input and output schema shared by both transports. MCP responses include structured content. The original URL-ingestion and listing handlers are placeholders, so they are not advertised by the new registry.
 
-## 📚 Available Tools
+## Configuration
 
-1. **add_document**: Add documents to knowledge base
-2. **add_document_from_url**: Fetch and add web content
-3. **add_documents_from_sitemap**: Batch-add from sitemaps
-4. **query_documents**: Search with hybrid BM25+vector search
-5. **get_rag_status**: Get system status and statistics
-6. **list_documents**: List all stored documents
-7. **remove_document**: Remove documents by ID
+The active server reads environment variables once at startup. It does not read `config.json`.
 
-## ⚙️ Configuration
+| Variable | Default |
+| --- | --- |
+| `DB_HOST` | `localhost` |
+| `DB_PORT` | `5432` |
+| `DB_NAME` | `rag` |
+| `DB_USER` | `raguser` |
+| `DB_PASSWORD` | `ragpassword` |
+| `DB_SSL` | `false` |
+| `EMBEDDING_MODEL` | `Xenova/all-MiniLM-L6-v2` |
+| `SERVER_HOST` | `127.0.0.1` |
+| `SERVER_PORT` | `3000` |
+| `SERVER_NAME` | `rag-knowledge-base` |
+| `SERVER_VERSION` | `1.0.1` |
 
-Configuration is managed through environment variables and optional config files. The application uses a TypeScript-based configuration system located in `src/utils/config.ts`.
+Default database credentials match the development Compose file. The embedding model is downloaded on first connector initialization.
 
-Set environment variables to customize the setup:
+## Verification
 
 ```bash
-DB_HOST=localhost                    # Database host
-DB_PORT=5432                        # Database port
-DB_NAME=rag                         # Database name
-DB_USER=postgres                    # Database user (default: postgres)
-DB_PASSWORD=postgres                # Database password (default: postgres)
-DB_SSL=false                        # Enable SSL (default: false)
-EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2  # Embedding model
-SERVER_NAME=rag-knowledge-base      # Server name
-SERVER_VERSION=1.0.0                # Server version
-SERVER_PORT=3000                    # Server port (for HTTP transport)
+npm run type-check
+npm run test:unit
 ```
 
-Alternative: Create a `config.json` file in the project root:
+The RivetBench tests check REST invocation and validation, OpenAPI, SDK MCP discovery and structured results, MCP Streamable HTTP, and configuration. They use injected connectors and need neither PostgreSQL nor model downloads.
 
-```json
-{
-  "database": {
-    "host": "localhost",
-    "port": 5432,
-    "database": "rag",
-    "user": "postgres", 
-    "password": "postgres",
-    "ssl": false
-  },
-  "embedding": {
-    "model": "Xenova/all-MiniLM-L6-v2"
-  }
-}
-```
-
-## 🏗️ Architecture
-
-```
-src/
-├── index.ts                  # Main entry point
-├── mcp/                      # MCP Server implementations
-│   ├── server.ts             # Main TypeScript MCP server
-│   ├── server-factory.ts     # Server factory with transport abstraction
-│   ├── rag-tools.ts          # RAG MCP tools registration
-│   ├── tool-builder.ts       # Tool building utilities
-│   └── implementations/      # Server transport implementations
-│       ├── FastMCPServer.ts  # FastMCP implementation
-│       └── StdioMCPServer.ts # Stdio transport implementation
-├── connectors/               # Database connectors
-│   └── postgresql/           # PostgreSQL specific connectors
-│       ├── PostgreSQLConnection.ts      # Basic connection
-│       ├── PostgreSQLConnector.ts       # Unified connector
-│       ├── factories.ts                # Connector factory helpers
-│       └── helpers/                    # Embedding helper strategies (e.g., XenovaBatchEmbeddingHelper)
-├── services/                 # Service layer
-│   ├── OpenAIEmbeddingService.ts        # OpenAI embeddings (optional)
-│   ├── XenovaEmbeddingService.ts        # Local Xenova embeddings
-│   └── PostgreSQLSearchService.ts       # Search service
-├── scripts/                  # Utility scripts
-│   ├── csv-importer.ts       # CSV import functionality
-│   ├── rag-status-check.ts   # System status checker
-│   └── fastmcp-research.ts   # FastMCP research tools
-├── types/                    # TypeScript type definitions
-│   ├── database.ts           # Database types
-│   ├── index.ts              # Main type exports
-│   └── mcp-interfaces.ts     # MCP interface definitions
-└── utils/                    # Utility functions
-    └── config.ts             # Configuration management
-
-tests/                        # Vitest test suite
-├── config.test.ts            # Configuration tests
-├── connection.test.ts        # Database connection tests
-├── database.test.ts          # Database functionality tests
-├── embedding-service.test.ts # Embedding service tests
-├── search-service.test.ts    # Search service tests
-├── mcp-server.test.ts        # MCP server tests
-├── e2e.test.ts              # End-to-end tests
-├── system.test.ts           # System integration tests
-└── README.md                # Test documentation
-```
-
-## 🧪 Testing
-
-The project uses **Vitest** as the testing framework with comprehensive TypeScript test suite:
+The original database integration tests still require a running database and the embedding model:
 
 ```bash
-# Run all tests
-npm test
-# or 
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run tests in watch mode
-npm run test:watch
+npm run test:integration
 ```
 
-### Test Structure
-- **`tests/config.test.ts`** - Configuration validation and loading
-- **`tests/connection.test.ts`** - Database connectivity tests
-- **`tests/database.test.ts`** - Database functionality and SQL operations
-- **`tests/embedding-service.test.ts`** - Embedding service functionality
-- **`tests/search-service.test.ts`** - Search and retrieval operations
-- **`tests/mcp-server.test.ts`** - MCP server functionality
-- **`tests/e2e.test.ts`** - End-to-end integration tests
-- **`tests/system.test.ts`** - Complete system integration tests
+## Migration boundaries
 
-### Development Testing Tools
-```bash
-# Check embeddings functionality
-node tests/check-embeddings.mjs
+The transport refactor retains the existing connector, embedding and search implementations. `src/endpoints/registry.ts` wraps the existing RAG handlers; `src/server/main.ts` is the composition root. The previous adapters under `src/mcp/` and JavaScript files under `mcp/` remain for compatibility and legacy tests, but package startup scripts use the new server.
 
-# Query documents directly (requires running database)
-node query-docs.mjs
+The new ontology importer uses separate graph tables and has been verified against PostgreSQL. Before using legacy document ingestion, repair its known storage issues: inserts currently omit the required document ID, the CSV CLI's dry-run still imports, and lexical indexing/search have inconsistent language settings and BM25 signatures. The transport tests do not establish that these storage paths work against a real database.
 
-### Manual API Testing
-```bash
-# Manual tool testing via curl (with server running)
-curl -X POST http://localhost:3000/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0.0"}}}'
-```
+The ontology importer produces reusable conversion artifacts with canonical URIs and source statements. Retrieval remains advisory; accepting classifications into Grapheon is a separate workflow.
 
-## 🔌 Integration
-
-### VS Code with GitHub Copilot
-
-This RAG server integrates seamlessly with VS Code through the Model Context Protocol (MCP). Follow the [official VS Code MCP documentation](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for detailed setup instructions.
-
-#### Quick Setup for VS Code
-
-1. **Start the RAG server** in stdio mode:
-   ```bash
-   npm start
-   ```
-
-2. **Add to VS Code settings** (`settings.json`):
-   ```json
-   {
-     "github.copilot.chat.mcp.servers": {
-       "rag-prototype": {
-         "command": "npx",
-         "args": ["tsx", "src/mcp/server.ts"],
-         "cwd": "path/to/your/rag-protoype",
-         "env": {
-           "DB_HOST": "localhost",
-           "DB_PORT": "5432",
-           "DB_NAME": "rag",
-           "DB_USER": "postgres",
-           "DB_PASSWORD": "postgres"
-         }
-       }
-     }
-   }
-   ```
-
-3. **Use the RAG tools** in GitHub Copilot Chat:
-   - Query your knowledge base: Ask questions about your stored documents
-   - Add new documents: Upload content from URLs or text
-   - Manage your knowledge base: List, search, and remove documents
-
-#### Available MCP Tools
-
-- `query_documents` - Search and retrieve relevant information
-- `add_document` - Add new content to the knowledge base
-- `add_document_from_url` - Import content from web pages
-- `add_documents_from_sitemap` - Batch import from sitemaps
-- `list_documents` - View all stored documents
-- `remove_document` - Delete specific documents
-- `get_rag_status` - Check system status
-
-### Other MCP Clients
-
-The server works with any MCP-compatible client using stdio transport:
-
-```json
-{
-  "mcpServers": {
-    "rag-service": {
-      "command": "npx",
-      "args": ["tsx", "src/mcp/server.ts"],
-      "cwd": "path/to/your/rag-protoype",
-      "env": {
-        "DB_HOST": "localhost",
-        "DB_PORT": "5432",
-        "DB_NAME": "rag"
-      }
-    }
-  }
-}
-```
-
-## 📄 License
+## License
 
 ISC

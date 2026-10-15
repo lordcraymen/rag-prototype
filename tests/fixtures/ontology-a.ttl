@@ -1,0 +1,9 @@
+@prefix ex: <https://example.org/a/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+ex:Thing a rdfs:Class ; rdfs:label "Thing"@en .
+ex:Person a rdfs:Class ; rdfs:label "Person"@en ; rdfs:comment "A <b>human</b> individual."@en ; rdfs:subClassOf ex:Thing .
+ex:Engineer a owl:Class ; rdfs:label "Engineer"@en ; rdfs:comment "A human who designs systems." ; rdfs:subClassOf ex:Person .
+ex:Organisation a rdfs:Class ; rdfs:label "Organisation"@en ; rdfs:comment "A group of people." ; rdfs:subClassOf ex:Thing .
+ex:employer a owl:ObjectProperty ; rdfs:label "employer" ; rdfs:domain ex:Person ; rdfs:range ex:Organisation .
+ex:Person owl:equivalentClass [ a owl:Restriction ; owl:onProperty ex:employer ; owl:someValuesFrom ex:Organisation ] .

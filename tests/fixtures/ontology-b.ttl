@@ -1,0 +1,4 @@
+@prefix ex: <https://example.org/b/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+ex:Human a skos:Concept ; skos:prefLabel "Human"@en ; skos:altLabel "Person"@en ; skos:definition "A human individual."@en ; skos:broader ex:Agent .
+ex:Agent a skos:Concept ; skos:prefLabel "Agent"@en ; skos:definition "Something that acts." .

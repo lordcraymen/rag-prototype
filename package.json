@@ -1,29 +1,35 @@
 {
   "name": "rag-prototype",
   "version": "1.0.1",
-  "description": "A RAG prototype using PostgreSQL + pgvector with FastMCP",
+  "description": "Graph and document retrieval using PostgreSQL, pgvector and RivetBench",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lordcraymen/rag-prototype.git"
   },
   "scripts": {
-    "start": "npx tsx src/mcp/server.ts",
-    "dev": "npx tsx --watch src/mcp/server.ts",
-    "mcp": "npx tsx src/mcp/server.ts",
-    "mcp:stdio": "npx tsx src/mcp/server.ts --transport stdio",
-    "mcp:http": "npx tsx src/mcp/server.ts --transport httpStream --port 3000",
-    "mcp:dev": "npx tsx src/mcp/server.ts --transport httpStream --port 3000 --verbose",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:reset": "docker-compose down -v && docker-compose up -d",
+    "start": "tsx src/server/main.ts",
+    "dev": "tsx --watch src/server/main.ts",
+    "mcp": "tsx src/server/main.ts",
+    "mcp:stdio": "tsx src/server/main.ts --transport stdio",
+    "mcp:http": "tsx src/server/main.ts --transport httpStream --port 3000",
+    "mcp:dev": "tsx src/server/main.ts --transport httpStream --port 3000 --verbose",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d",
     "docker:logs": "docker logs rag-postgres",
     "test": "vitest",
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
-    "csv:import": "npx tsx src/scripts/csv-importer.ts"
+    "csv:import": "npx tsx src/scripts/csv-importer.ts",
+    "dev:rest": "tsx src/server/main.ts --transport http",
+    "type-check": "tsc --noEmit",
+    "test:unit": "vitest run tests/config.test.ts tests/database.test.ts tests/embedding-service.test.ts tests/search-service.test.ts tests/mcp-server.test.ts tests/e2e.test.ts tests/rivetbench.test.ts tests/ontology.test.ts",
+    "test:integration": "vitest run tests/connection.test.ts tests/system.test.ts",
+    "ontology": "tsx src/scripts/ontology.ts",
+    "test:ontology:integration": "vitest run tests/ontology.integration.test.ts"
   },
   "keywords": [
     "mcp",
@@ -39,17 +45,23 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@lordcraymen/rivetbench": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/node-fetch": "^2.6.13",
     "@xenova/transformers": "^2.17.2",
     "cheerio": "^1.0.0-rc.12",
     "csv-parse": "^6.1.0",
     "fastmcp": "^3.16.0",
+    "jsonld": "^9.0.0",
+    "n3": "^2.13.12",
     "node-fetch": "^3.3.2",
     "openai": "^5.20.3",
     "pg": "^8.16.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/jsonld": "^1.5.15",
+    "@types/n3": "^1.26.4",
     "@types/node": "^24.5.1",
     "@types/pg": "^8.15.5",
     "@vitest/coverage-v8": "^3.2.4",
@@ -58,6 +70,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.5",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   }
 }

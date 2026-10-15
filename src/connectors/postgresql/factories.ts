@@ -12,6 +12,7 @@ interface OpenAIConnectorOptions {
 interface XenovaConnectorOptions {
     model?: string;
     batchSize?: number;
+    lazyEmbeddings?: boolean;
 }
 
 export function createOpenAIConnector(config: DatabaseConfig, options: OpenAIConnectorOptions): PostgreSQLConnector {
@@ -27,6 +28,6 @@ export function createXenovaConnector(config: DatabaseConfig, options: XenovaCon
 
     return new PostgreSQLConnector(config, {
         embeddingService,
-        batchHelper
+        batchHelper: options.lazyEmbeddings ? undefined : batchHelper
     });
 }
